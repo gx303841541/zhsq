@@ -1,0 +1,59 @@
+[2018-04-18 10:36:20,910] [INFO] [case_actions.py: 98] setup start...
+[2018-04-18 10:36:20,911] [INFO] [case_actions.py: 104] run: self.update_token()
+[2018-04-18 10:36:20,912] [INFO] [case_actions.py: 36] update_token
+[2018-04-18 10:36:20,914] [DEBUG] [case_actions.py: 39] http://192.168.0.94:81//scp-usermgmtcomponent/admin/login?username=test&password=dGVzdA==
+[2018-04-18 10:36:20,992] [DEBUG] [case_actions.py: 47] Get token: eyJhbGciOiJSUzUxMiJ9.eyJzdWIiOiJ0ZXN0IiwiZXhwIjoxNTI0NjIzNzc2fQ.Blv48B3r6cDwf2NJL5fRQ8Yx8zfPLIcxxOZ7QHxlqBj60t6Ry4OtKPiRjhhKKmYVXtPe4FeCNGxTo1k0UvzZ5dNmjrAZvZbli8xYPZnPftFU3vAQiCzVdQ6akR6VqR4m0cf4lldL97DJokQRTxRDmuFStWr2Ni2CmDyzdpd0zmw
+[2018-04-18 10:36:20,993] [INFO] [case_actions.py: 101] run: self.update_config_from_DB(table="mdc.base_court", whichone="lastone", item_list=[(0, "cell_uuid")])
+[2018-04-18 10:36:21,016] [INFO] [case_checker.py: 113] exec SQL:select * from mdc.base_court;
+[2018-04-18 10:36:21,019] [DEBUG] [case_checker.py: 140] get from DB: ('c69aeede4f6341929721e2892beec3cb', '恒大山水城', 'hdssc', '广东省', 'gd', '广州市', 'gz', '增城市', 'zc', '03', '广州市增城市恒大山水城小区', 2573, 2568, Decimal('5382.06'), Decimal('5842.17'), '广州市增城市恒大山水城小区', 'egcloud.hengdayun.com', '446', '', '', 1, 1, datetime.datetime(2018, 4, 13, 16, 51, 27, 361491), datetime.datetime(2018, 4, 13, 16, 51, 27, 361491), '10008', '10011', '137197931', None, 0)
+[2018-04-18 10:36:21,022] [DEBUG] [case_actions.py: 71] set config.cell_uuid = "c69aeede4f6341929721e2892beec3cb"
+[2018-04-18 10:36:21,023] [INFO] [case_actions.py: 106] setup end.
+
+
+[2018-04-18 10:36:21,026] [INFO] [case_actions.py: 116] step step1 start...
+[2018-04-18 10:36:21,029] [DEBUG] [case_actions.py: 155] http://192.168.0.86:9046/api/robot/lightUp
+[2018-04-18 10:36:21,031] [DEBUG] [case_actions.py: 157] send msg: {
+    "data": {
+        "building": "10",
+        "businessId": "string",
+        "cell": "1",
+        "courtId": "c69aeede4f6341929721e2892beec3cb",
+        "currentFloor": 0,
+        "currentLift": "string",
+        "delay": 0,
+        "extAttributes": {},
+        "floor": 0,
+        "moving": 0,
+        "node": "101",
+        "robot": "string",
+        "sourceSysId": "string",
+        "targetSysId": "string",
+        "transactionId": "string"
+    },
+    "header": {
+        "businessId": "string",
+        "charset": "string",
+        "contentType": "string",
+        "createTimestamp": 0,
+        "extAttributes": {},
+        "sourceSysId": "string",
+        "targetSysId": "string"
+    }
+}
+[2018-04-18 10:36:21,187] [DEBUG] [case_actions.py: 181] recv msg: {
+    "code": "00000",
+    "data": null,
+    "message": "success"
+}
+[2018-04-18 10:36:21,190] [INFO] [case_checker.py: 30] check resp match...
+[2018-04-18 10:36:21,191] [INFO] [common_methods.py: 64] Found ('code', '00000')
+[2018-04-18 10:36:21,192] [INFO] [common_methods.py: 64] Found ('message', 'success')
+[2018-04-18 10:36:21,195] [INFO] [case_checker.py: 38] check DB match...
+[2018-04-18 10:36:21,198] [INFO] [case_actions.py: 210] start actions...
+[2018-04-18 10:36:21,200] [INFO] [case_actions.py: 123] step step1 end.
+--------------------
+
+
+[2018-04-18 10:36:21,203] [INFO] [framework.py: 79] pass
+[2018-04-18 10:36:21,206] [INFO] [case_actions.py: 131] teardown start...
+[2018-04-18 10:36:21,207] [INFO] [case_actions.py: 137] teardown end.

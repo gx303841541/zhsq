@@ -1,0 +1,54 @@
+[2018-04-18 10:36:21,216] [INFO] [case_actions.py: 98] setup start...
+[2018-04-18 10:36:21,217] [INFO] [case_actions.py: 104] run: self.update_token()
+[2018-04-18 10:36:21,219] [INFO] [case_actions.py: 36] update_token
+[2018-04-18 10:36:21,220] [DEBUG] [case_actions.py: 39] http://192.168.0.94:81//scp-usermgmtcomponent/admin/login?username=test&password=dGVzdA==
+[2018-04-18 10:36:21,299] [DEBUG] [case_actions.py: 47] Get token: eyJhbGciOiJSUzUxMiJ9.eyJzdWIiOiJ0ZXN0IiwiZXhwIjoxNTI0NjIzNzc3fQ.CSNh7rrks__EmELK_REJJ1aNvKxOPNDf7Y5D-bS1RmxPs_1v7faH2Nes1JZAeRMbkhA_0DMEp98JwczIi5MAOMIujC2e-l97f-_beZb4uh8EdYJxWcspDU5O26JJUkw6FinkDdmXQrUc-BaNfDTGiy6G6mRSbl0e90WxZ1TZdlY
+[2018-04-18 10:36:21,300] [INFO] [case_actions.py: 101] run: self.update_config_from_DB(table="mdc.base_court", whichone="lastone", item_list=[(0, "cell_uuid")])
+[2018-04-18 10:36:21,313] [INFO] [case_checker.py: 113] exec SQL:select * from mdc.base_court;
+[2018-04-18 10:36:21,318] [DEBUG] [case_checker.py: 140] get from DB: ('c69aeede4f6341929721e2892beec3cb', '恒大山水城', 'hdssc', '广东省', 'gd', '广州市', 'gz', '增城市', 'zc', '03', '广州市增城市恒大山水城小区', 2573, 2568, Decimal('5382.06'), Decimal('5842.17'), '广州市增城市恒大山水城小区', 'egcloud.hengdayun.com', '446', '', '', 1, 1, datetime.datetime(2018, 4, 13, 16, 51, 27, 361491), datetime.datetime(2018, 4, 13, 16, 51, 27, 361491), '10008', '10011', '137197931', None, 0)
+[2018-04-18 10:36:21,319] [DEBUG] [case_actions.py: 71] set config.cell_uuid = "c69aeede4f6341929721e2892beec3cb"
+[2018-04-18 10:36:21,320] [INFO] [case_actions.py: 106] setup end.
+
+
+[2018-04-18 10:36:21,323] [INFO] [case_actions.py: 116] step step1 start...
+[2018-04-18 10:36:21,326] [DEBUG] [case_actions.py: 155] http://192.168.0.86:9046/api/robot/sendOpenDoor
+[2018-04-18 10:36:21,328] [DEBUG] [case_actions.py: 157] send msg: {
+    "data": {
+        "building": "10",
+        "businessId": "string",
+        "cell": "1",
+        "command": 0,
+        "courtId": "c69aeede4f6341929721e2892beec3cb",
+        "extAttributes": {},
+        "node": "1",
+        "robot": "xjj",
+        "sourceSysId": "string",
+        "targetSysId": "string"
+    },
+    "header": {
+        "businessId": "string",
+        "charset": "string",
+        "contentType": "string",
+        "createTimestamp": 0,
+        "extAttributes": {},
+        "sourceSysId": "string",
+        "targetSysId": "string"
+    }
+}
+[2018-04-18 10:36:21,450] [DEBUG] [case_actions.py: 181] recv msg: {
+    "code": "00000",
+    "data": null,
+    "message": "success"
+}
+[2018-04-18 10:36:21,454] [INFO] [case_checker.py: 30] check resp match...
+[2018-04-18 10:36:21,456] [INFO] [common_methods.py: 64] Found ('code', '00000')
+[2018-04-18 10:36:21,457] [INFO] [common_methods.py: 64] Found ('message', 'success')
+[2018-04-18 10:36:21,460] [INFO] [case_checker.py: 38] check DB match...
+[2018-04-18 10:36:21,462] [INFO] [case_actions.py: 210] start actions...
+[2018-04-18 10:36:21,463] [INFO] [case_actions.py: 123] step step1 end.
+--------------------
+
+
+[2018-04-18 10:36:21,464] [INFO] [framework.py: 79] pass
+[2018-04-18 10:36:21,468] [INFO] [case_actions.py: 131] teardown start...
+[2018-04-18 10:36:21,470] [INFO] [case_actions.py: 137] teardown end.
