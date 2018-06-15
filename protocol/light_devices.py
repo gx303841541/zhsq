@@ -333,6 +333,8 @@ class Dev(BaseSim):
             msg_param_list = msg_param.split('.')
             tmp_msg = msg[msg_param_list[0]]
             for i in msg_param_list[1:]:
+                if re.match(r'\d+', i):
+                    i = int(i)
                 tmp_msg = tmp_msg[i]
             self.set_item(item, tmp_msg)
 

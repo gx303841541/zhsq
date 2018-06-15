@@ -27,6 +27,9 @@ Attribute_initialization = {
     "_CredenceType": 5,
     "_credenceNo": '12345678',
     "_State": 0,
+    "_id": 1,
+    "_id_ADD_SCHEDULE": 1,
+    "_id_DELETE_SCHEDULE": 1,
 
     "SPECIAL_ITEM": {
         "_State": {
@@ -73,6 +76,10 @@ Command_list = {
     "COM_DELETE_CERTIFICATE_IN_BATCH": {"msg": "清除固定凭证操作"},
     "COM_GATE_CONTROL": {"msg": "开关闸（门）"},
     "COM_QUERY_DEV_STATUS": {"msg": "设备状态查询"},
+    "ADS_ADD_PROGRAM": {"msg": "新增节目"},
+    "ADS_DELETE_PROGRAM": {"msg": "删除节目"},
+    "ADS_ADD_SCHEDULE": {"msg": "新增日程"},
+    "ADS_DELETE_SCHEDULE": {"msg": "删除日程"},
 }
 
 
@@ -170,14 +177,53 @@ COM_QUERY_DIR = {
 }
 
 
-u'''功能命令：恢复出厂设置'''
-COM_DEV_RESET = {
+u'''功能命令：新增节目'''
+ADS_ADD_PROGRAM = {
+    'set_item': {'_id': 'Data.0.id'},
+    "rsp_msg": {
+        "Command": "ADS_ADD_PROGRAM",
+        "Result": 0,
+        "Data": [
+            {
+                "id": "##self._id##",
+            }
+        ]
+    }
+}
+
+u'''功能命令：删除节目'''
+ADS_DELETE_PROGRAM = {
     'set_item': {},
     "rsp_msg": {
-        "Command": "COM_DEV_RESET",
+        "Command": "ADS_DELETE_PROGRAM",
         "Result": 0,
     }
 }
+
+
+u'''功能命令：新增日程'''
+ADS_ADD_SCHEDULE = {
+    'set_item': {'_id_ADD_SCHEDULE': 'Data.0.id'},
+    "rsp_msg": {
+        "Command": "ADS_ADD_SCHEDULE",
+        "Result": 0,
+        "Data": [
+            {
+                "id": "##self._id##",
+            }
+        ]
+    }
+}
+
+u'''功能命令：删除日程'''
+ADS_DELETE_SCHEDULE = {
+    'set_item': {'_id_DELETE_SCHEDULE': 'Data.0.idList.0.id'},
+    "rsp_msg": {
+        "Command": "ADS_DELETE_SCHEDULE",
+        "Result": 0,
+    }
+}
+
 
 u'''功能命令：读取时间'''
 COM_READ_TIME = {

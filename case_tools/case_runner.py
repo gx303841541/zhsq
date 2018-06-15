@@ -25,11 +25,11 @@ from basic.cprint import cprint
 CASE_STATE = ['not_start', 'ongoing', 'running', 'done']
 
 
-def run(case_file_list):
+def run1(case_file_list):
     os.system(
         r'nosetests cases -v --with-html --html-out-file=./result/result.html')
 
 
-def run2(case_file_list):
+def run(case_file_list):
     os.system(
         r'py.test -q cases --html=./result/result.html')

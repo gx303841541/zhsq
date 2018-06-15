@@ -34,3 +34,5 @@ PostgreSQL = {
 }
 
 TestTime = 100 * 60 * 60  # 测试时间 100 小时 * 60分钟 * 60秒
+
+replayPath = r'C:\\httpapi-master\\'

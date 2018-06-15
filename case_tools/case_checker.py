@@ -38,8 +38,23 @@ class Checker(common_methods.CommMethod):
                 self.LOG.info("check DB match...")
                 self.DB_match_check(check_dict[item])
 
+            elif item.startswith('sim'):
+                self.LOG.info("check sim match...")
+                self.sim_para_check(check_dict[item])
+
             else:
                 self.LOG.warn('More check point will be do in the feature!')
+
+    def sim_para_check(self, check_dict):
+        result = True
+        sim = self.__dict__[check_dict['obj']]
+        for k, v in check_dict['expect']:
+            if sim.__dict__[k] == v:
+                self.LOG.info("%s = %s" % (sim.__dict__[k], v))
+            else:
+                self.LOG.error("%s != %s" % (sim.__dict__[k], v))
+                result = False
+        assert result
 
     def resp_match_check(self, expect_resp, resp):
         result = self.dict_items_compare(expect_resp, resp)
@@ -56,7 +71,13 @@ class Checker(common_methods.CommMethod):
         else:
             return
 
-        resp = self.DB_sql_send(expect_DB['table'], expect_DB['where'])
+        whichone = ''
+        for item in expect_DB['where']:
+            if whichone:
+                whichone += ' and '
+            whichone += item
+
+        resp = self.DB_sql_send(expect_DB['table'], whichone)
         if resp:
             for (id, value) in expect_DB['expect']:
                 if expect_DB['method'] == '=':
@@ -99,7 +120,7 @@ class Checker(common_methods.CommMethod):
                 pass
             else:
                 self.LOG.error("%s:%s unexist!" %
-                               (expect_DB['table'], expect_DB['whichone']))
+                               (expect_DB['table'], expect_DB['where']))
                 result = False
         assert result
 
@@ -117,23 +138,9 @@ class Checker(common_methods.CommMethod):
         self.cxn.close()
 
     def DB_sql_send(self, table, whichone):
-        resp = None
-        if whichone in ['lastone', 'firstone', 'randomone']:
-            resp = self.DB_query('select * from %s;' % (table))
-            if resp:
-                if whichone == 'firstone':
-                    resp = resp[0]
-                elif whichone == 'lastone':
-                    resp = resp[-1]
-                else:
-                    resp = resp[random.randint(0, len(resp) - 1)]
-            else:
-                pass
-
-        else:
-            resp = self.DB_query(
-                'select * from %s where %s;' % (table, whichone))
-            if resp:
-                resp = resp[0]
+        resp = self.DB_query(
+            'select * from %s where %s;' % (table, whichone))
+        if resp:
+            resp = resp[0]
         self.LOG.debug("get from DB: " + str(resp))
         return resp

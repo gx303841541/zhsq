@@ -15,10 +15,13 @@ import shutil
 import sys
 import time
 
+import PIL
 import psycopg2
 import requests
+from PIL import Image, ImageDraw, ImageFont
 
 import APIs.common_APIs as common_APIs
+import qrcode
 from basic.log_tool import MyLogger
 from case_config import config
 from case_tools.case_checker import Checker
@@ -66,23 +69,43 @@ class APIs(Checker):
         except Exception as e:
             self.LOG.error('get token fail![%s]' % (str(e)))
 
-    def update_config_from_DB(self, table, whichone, item_list):
+    def update_config_from_DB(self, table, whichone_list, item_list):
+        whichone = ''
+        for item in whichone_list:
+            if whichone:
+                whichone += ' and '
+            whichone += item
+
         resp = self.DB_sql_send(table, whichone)
         # self.LOG.debug("get from DB: " + str(resp))
         for id, key in item_list:
             self.LOG.debug('set config.%s = "%s"' % (key, resp[id]))
             setattr(config, key, resp[id])
 
-    def update_config_from_resp(self, *args):
-        for k, v in args:
-            self.LOG.debug('set config.%s = "%s"' % (k, v))
-            setattr(config, k, v)
+    def update_config_from_resp(self, body, target):
+        field = target['field']
+        key = target['key']
+
+        target_field = body
+        field_list = field.split('.')
+        while field_list:
+            item = field_list[0]
+            field_list = field_list[1:]
+            if type(target_field[item]) == type([]) or type(target_field[item]) == type({}):
+                target_field = target_field[item]
+            else:
+                config.__dict__[key] = target_field[item]
+                self.LOG.debug("set config.%s=%s" % (key, target_field[item]))
 
     def update_config_by_randomstr(self, *args):
         for k, v in args:
             self.LOG.debug('set config.%s = "%s"' %
                            (k, common_APIs.random_str(v)))
             setattr(config, k, common_APIs.random_str(v))
+
+    def update_config_by_tuple(self, k, v):
+        self.LOG.debug('set config.%s = "%s"' % (k, v))
+        setattr(config, k, v)
 
     def config_dumps(self):
         config_dict = {}
@@ -101,6 +124,27 @@ class APIs(Checker):
         self.__dict__[sim_conf['name']] .run_forever()
         time.sleep(1)
         self.LOG.warn('%s is running' % sim_conf['name'])
+
+    def make_qrcode(self, ot_qrcode, ot_password):
+        img = qrcode.make(ot_qrcode)
+        pic_name = self.log_dir + ot_password + '.png'
+        img.save(pic_name)
+        img = Image.open(pic_name)
+        draw = ImageDraw.Draw(img)
+        draw.text((0, 0), ot_password)
+        draw = ImageDraw.Draw(img)
+        img.save(pic_name)
+
+    def run_def(self, def_dict):
+        args = ''
+        for arg in def_dict["args"]:
+            if re.search(r'##', arg):
+                args += self.data_wash_core(arg) + ', '
+            else:
+                args += arg + ', '
+        args = args[:-2]
+        self.LOG.debug('run: ' + "self.%s(%s)" % (def_dict["name"], args))
+        eval("self.%s(%s)" % (def_dict["name"], args))
 
 
 class Action(APIs):
@@ -124,14 +168,11 @@ class Action(APIs):
                 self.LOG.error('Unknow item: %s' % item)
 
         for item in (DB_list):
-            self.update_config_from_DB(datas_dict['setup'][item]['table'], datas_dict['setup']
-                                       [item]['where'], datas_dict['setup'][item]['target'])
+            self.update_config_from_DB(datas_dict['setup'][item]['table'], self.data_wash(datas_dict['setup']
+                                                                                          [item]['where']), datas_dict['setup'][item]['target'])
 
         for item in sorted(def_list):
-            args = ''
-            for arg in datas_dict['setup'][item]["args"]:
-                args += arg
-            eval("self.%s(%s)" % (datas_dict['setup'][item]["name"], args))
+            self.run_def(datas_dict['setup'][item])
 
         for item in sorted(sim_list):
             self.sim_start(datas_dict['setup'][item])
@@ -151,8 +192,11 @@ class Action(APIs):
                 resp = self.send_data(
                     step['mode'], self.data_wash(step['send']))
                 self.resp = resp
+
+                if 'action' in step:
+                    self.action(step['action'])
+
                 self.result_check(self.data_wash(step['check']), resp)
-                self.action(step['action'])
                 self.LOG.info(
                     'step %s end.\n%s\n\n' % (step_name, '-' * 20))
             self.case_pass()
@@ -174,14 +218,11 @@ class Action(APIs):
                 def_list.append(item)
 
         for item in DB_list:
-            self.update_config_from_DB(datas_dict['teardown'][item]['table'], datas_dict['teardown']
-                                       [item]['where'], datas_dict['teardown'][item]['target'])
+            self.update_config_from_DB(datas_dict['teardown'][item]['table'], self.data_wash(datas_dict['teardown']
+                                                                                             [item]['where']), datas_dict['teardown'][item]['target'])
 
         for item in sorted(def_list):
-            args = ''
-            for arg in datas_dict['teardown'][item]["args"]:
-                args += arg
-            eval("self.%s(%s)" % (datas_dict['teardown'][item]["name"], args))
+            self.run_def(datas_dict['teardown'][item])
 
         for item in resp_list:
             self.update_config_from_resp(self.resp, datas_dict['teardown'][item])
@@ -208,7 +249,7 @@ class Action(APIs):
             self.LOG.debug("send msg: " + self.convert_to_dictstr(data))
             if mode['protocol'][1] == "get":
                 try:
-                    resp = requests.get(url, headers=header, timeout=1)
+                    resp = requests.get(url, headers=header, timeout=5)
                 except requests.exceptions.ConnectTimeout:
                     self.LOG.warn('HTTP timeout')
                     # assert False
@@ -241,7 +282,11 @@ class Action(APIs):
                     sim.send_msg(sim.get_upload_event(int(data['upload_event'])))
                 else:
                     self.LOG.error('Unknow msg: %s' % item)
-
+        elif mode['protocol'][0] == 'replay':
+            cur_dir = os.getcwd()
+            os.chdir(config.replayPath)
+            os.system(r'python3 %s -f %s' % ('replayit.py', data['module']))
+            os.chdir(cur_dir)
         return resp
 
     def data_wash_core(self, data):
@@ -259,17 +304,26 @@ class Action(APIs):
         return data
 
     def data_wash(self, data):
+        if not data:
+            return ''
         tmp_data = str(data)
         tmp_data = self.data_wash_core(tmp_data)
-        # self.LOG.error(tmp_data)
         return eval(tmp_data)
 
     def action(self, actions):
         self.LOG.info('start actions...')
-        for action in actions:
-            if action.endswith(')'):
-                self.LOG.info('action:' + "self.%s" %
-                              (self.data_wash_core(action)))
-                eval("self.%s" % (self.data_wash_core(action)))
-            else:
-                eval("self.%s()" % (self.data_wash_core(action)))
+        resp_list = []
+        def_list = []
+        for item in actions:
+            if re.search(r'^resp', item) and actions[item]:
+                resp_list.append(item)
+            elif re.search(r'^def', item) and actions[item]:
+                def_list.append(item)
+
+        for item in resp_list:
+            self.update_config_from_resp(self.resp, actions[item])
+
+        for item in sorted(def_list):
+            self.run_def(actions[item])
+
+        self.LOG.info('stop actions...')

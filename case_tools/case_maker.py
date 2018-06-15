@@ -44,7 +44,7 @@ class CaseMaker(object):
             os.mkdir(log_dir)
             self.log_dir = log_dir
         except Exception as er:
-            print('Can not create log dir: %s\n[[%s]]' % (
+            self.LOG.error('Can not create log dir: %s\n[[%s]]' % (
                 log_dir, str(er)))
             sys.exit()
 

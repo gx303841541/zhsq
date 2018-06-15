@@ -7,6 +7,7 @@ use:
 """
 
 import binascii
+import datetime
 import functools
 import hashlib
 import os
@@ -29,6 +30,10 @@ def file_lock(open_file):
 def file_unlock(open_file):
     return fcntl.flock(open_file, fcntl.LOCK_UN)
 '''
+
+
+def get_timestr_by_diff(strf='%Y-%m-%d %H:%M:%S', **timediff):
+    return (datetime.datetime.now() + datetime.timedelta(**timediff)).strftime(strf)
 
 
 def random_str(length=8):

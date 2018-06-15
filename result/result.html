@@ -1,0 +1,1395 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8"/>
+    <title>Test Report</title>
+    <link href="assets/style.css" rel="stylesheet" type="text/css"/></head>
+  <body onLoad="init()">
+    <script>/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this file,
+ * You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+
+function toArray(iter) {
+    if (iter === null) {
+        return null;
+    }
+    return Array.prototype.slice.call(iter);
+}
+
+function find(selector, elem) {
+    if (!elem) {
+        elem = document;
+    }
+    return elem.querySelector(selector);
+}
+
+function find_all(selector, elem) {
+    if (!elem) {
+        elem = document;
+    }
+    return toArray(elem.querySelectorAll(selector));
+}
+
+function sort_column(elem) {
+    toggle_sort_states(elem);
+    var colIndex = toArray(elem.parentNode.childNodes).indexOf(elem);
+    var key;
+    if (elem.classList.contains('numeric')) {
+        key = key_num;
+    } else if (elem.classList.contains('result')) {
+        key = key_result;
+    } else {
+        key = key_alpha;
+    }
+    sort_table(elem, key(colIndex));
+}
+
+function show_all_extras() {
+    find_all('.col-result').forEach(show_extras);
+}
+
+function hide_all_extras() {
+    find_all('.col-result').forEach(hide_extras);
+}
+
+function show_extras(colresult_elem) {
+    var extras = colresult_elem.parentNode.nextElementSibling;
+    var expandcollapse = colresult_elem.firstElementChild;
+    extras.classList.remove("collapsed");
+    expandcollapse.classList.remove("expander");
+    expandcollapse.classList.add("collapser");
+}
+
+function hide_extras(colresult_elem) {
+    var extras = colresult_elem.parentNode.nextElementSibling;
+    var expandcollapse = colresult_elem.firstElementChild;
+    extras.classList.add("collapsed");
+    expandcollapse.classList.remove("collapser");
+    expandcollapse.classList.add("expander");
+}
+
+function show_filters() {
+    var filter_items = document.getElementsByClassName('filter');
+    for (var i = 0; i < filter_items.length; i++)
+        filter_items[i].hidden = false;
+}
+
+function add_collapse() {
+    // Add links for show/hide all
+    var resulttable = find('table#results-table');
+    var showhideall = document.createElement("p");
+    showhideall.innerHTML = '<a href="javascript:show_all_extras()">Show all details</a> / ' +
+                            '<a href="javascript:hide_all_extras()">Hide all details</a>';
+    resulttable.parentElement.insertBefore(showhideall, resulttable);
+
+    // Add show/hide link to each result
+    find_all('.col-result').forEach(function(elem) {
+        var extras = elem.parentNode.nextElementSibling;
+        var expandcollapse = document.createElement("span");
+        if (elem.innerHTML === 'Passed') {
+            extras.classList.add("collapsed");
+            expandcollapse.classList.add("expander");
+        } else {
+            expandcollapse.classList.add("collapser");
+        }
+        elem.appendChild(expandcollapse);
+
+        elem.addEventListener("click", function(event) {
+            if (event.currentTarget.parentNode.nextElementSibling.classList.contains("collapsed")) {
+                show_extras(event.currentTarget);
+            } else {
+                hide_extras(event.currentTarget);
+            }
+        });
+    })
+}
+
+function init () {
+    reset_sort_headers();
+
+    add_collapse();
+
+    show_filters();
+
+    toggle_sort_states(find('.initial-sort'));
+
+    find_all('.sortable').forEach(function(elem) {
+        elem.addEventListener("click",
+                              function(event) {
+                                  sort_column(elem);
+                              }, false)
+    });
+
+};
+
+function sort_table(clicked, key_func) {
+    var rows = find_all('.results-table-row');
+    var reversed = !clicked.classList.contains('asc');
+    var sorted_rows = sort(rows, key_func, reversed);
+    /* Whole table is removed here because browsers acts much slower
+     * when appending existing elements.
+     */
+    var thead = document.getElementById("results-table-head");
+    document.getElementById('results-table').remove();
+    var parent = document.createElement("table");
+    parent.id = "results-table";
+    parent.appendChild(thead);
+    sorted_rows.forEach(function(elem) {
+        parent.appendChild(elem);
+    });
+    document.getElementsByTagName("BODY")[0].appendChild(parent);
+}
+
+function sort(items, key_func, reversed) {
+    var sort_array = items.map(function(item, i) {
+        return [key_func(item), i];
+    });
+    var multiplier = reversed ? -1 : 1;
+
+    sort_array.sort(function(a, b) {
+        var key_a = a[0];
+        var key_b = b[0];
+        return multiplier * (key_a >= key_b ? 1 : -1);
+    });
+
+    return sort_array.map(function(item) {
+        var index = item[1];
+        return items[index];
+    });
+}
+
+function key_alpha(col_index) {
+    return function(elem) {
+        return elem.childNodes[1].childNodes[col_index].firstChild.data.toLowerCase();
+    };
+}
+
+function key_num(col_index) {
+    return function(elem) {
+        return parseFloat(elem.childNodes[1].childNodes[col_index].firstChild.data);
+    };
+}
+
+function key_result(col_index) {
+    return function(elem) {
+        var strings = ['Error', 'Failed', 'Rerun', 'XFailed', 'XPassed',
+                       'Skipped', 'Passed'];
+        return strings.indexOf(elem.childNodes[1].childNodes[col_index].firstChild.data);
+    };
+}
+
+function reset_sort_headers() {
+    find_all('.sort-icon').forEach(function(elem) {
+        elem.parentNode.removeChild(elem);
+    });
+    find_all('.sortable').forEach(function(elem) {
+        var icon = document.createElement("div");
+        icon.className = "sort-icon";
+        icon.textContent = "vvv";
+        elem.insertBefore(icon, elem.firstChild);
+        elem.classList.remove("desc", "active");
+        elem.classList.add("asc", "inactive");
+    });
+}
+
+function toggle_sort_states(elem) {
+    //if active, toggle between asc and desc
+    if (elem.classList.contains('active')) {
+        elem.classList.toggle('asc');
+        elem.classList.toggle('desc');
+    }
+
+    //if inactive, reset all other functions and add ascending active
+    if (elem.classList.contains('inactive')) {
+        reset_sort_headers();
+        elem.classList.remove('inactive');
+        elem.classList.add('active');
+    }
+}
+
+function is_all_rows_hidden(value) {
+  return value.hidden == false;
+}
+
+function filter_table(elem) {
+    var outcome_att = "data-test-result";
+    var outcome = elem.getAttribute(outcome_att);
+    class_outcome = outcome + " results-table-row";
+    var outcome_rows = document.getElementsByClassName(class_outcome);
+
+    for(var i = 0; i < outcome_rows.length; i++){
+        outcome_rows[i].hidden = !elem.checked;
+    }
+
+    var rows = find_all('.results-table-row').filter(is_all_rows_hidden);
+    var all_rows_hidden = rows.length == 0 ? true : false;
+    var not_found_message = document.getElementById("not-found-message");
+    not_found_message.hidden = !all_rows_hidden;
+}
+</script>
+    <h1>result.html</h1>
+    <p>Report generated on 15-Jun-2018 at 16:19:38 by<a href="https://pypi.python.org/pypi/pytest-html"> pytest-html</a> v1.17.0</p>
+    <h2>Environment</h2>
+    <table id="environment">
+      <tr>
+        <td>Packages</td>
+        <td>{&apos;pytest&apos;: &apos;3.5.0&apos;, &apos;py&apos;: &apos;1.5.3&apos;, &apos;pluggy&apos;: &apos;0.6.0&apos;}</td></tr>
+      <tr>
+        <td>Platform</td>
+        <td>Windows-7-6.1.7601-SP1</td></tr>
+      <tr>
+        <td>Plugins</td>
+        <td>{&apos;metadata&apos;: &apos;1.7.0&apos;, &apos;html&apos;: &apos;1.17.0&apos;}</td></tr>
+      <tr>
+        <td>Python</td>
+        <td>3.6.2</td></tr></table>
+    <h2>Summary</h2>
+    <p>4 tests ran in 74.74 seconds. </p>
+    <p class="filter" hidden="true">(Un)check the boxes to filter the results.</p><input checked="true" class="filter" data-test-result="passed" hidden="true" name="filter_checkbox" onChange="filter_table(this)" type="checkbox"/><span class="passed">3 passed</span>, <input checked="true" class="filter" data-test-result="skipped" disabled="true" hidden="true" name="filter_checkbox" onChange="filter_table(this)" type="checkbox"/><span class="skipped">0 skipped</span>, <input checked="true" class="filter" data-test-result="failed" hidden="true" name="filter_checkbox" onChange="filter_table(this)" type="checkbox"/><span class="failed">1 failed</span>, <input checked="true" class="filter" data-test-result="error" disabled="true" hidden="true" name="filter_checkbox" onChange="filter_table(this)" type="checkbox"/><span class="error">0 errors</span>, <input checked="true" class="filter" data-test-result="xfailed" disabled="true" hidden="true" name="filter_checkbox" onChange="filter_table(this)" type="checkbox"/><span class="xfailed">0 expected failures</span>, <input checked="true" class="filter" data-test-result="xpassed" disabled="true" hidden="true" name="filter_checkbox" onChange="filter_table(this)" type="checkbox"/><span class="xpassed">0 unexpected passes</span>
+    <h2>Results</h2>
+    <table id="results-table">
+      <thead id="results-table-head">
+        <tr>
+          <th class="sortable result initial-sort" col="result">Result</th>
+          <th class="sortable" col="name">Test</th>
+          <th class="sortable numeric" col="duration">Duration</th>
+          <th>Links</th></tr>
+        <tr hidden="true" id="not-found-message">
+          <th colspan="4">No results found. Try to check the filters</th></tr></thead>
+      <tbody class="failed results-table-row">
+        <tr>
+          <td class="col-result">Failed</td>
+          <td class="col-name">cases/test_1.py::Test_patrolHandle::()::test</td>
+          <td class="col-duration">3.65</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log">self = &lt;test_1.Test_patrolHandle object at 0x00000000035CECF8&gt;<br/><br/>    def test(self):<br/>        self.common_init()<br/>        result = 0<br/>        try:<br/>&gt;           result = self.run()<br/><br/>basic\framework.py:59: <br/>_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _<br/>cases\test_1.py:32: in run<br/>    self.do_run(test_1.Test_patrolHandle)<br/>case_tools\case_actions.py:199: in do_run<br/>    self.result_check(self.data_wash(step[&#x27;check&#x27;]), resp)<br/>case_tools\case_checker.py:39: in result_check<br/>    self.DB_match_check(check_dict[item])<br/>_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _<br/><br/>self = &lt;test_1.Test_patrolHandle object at 0x00000000035CECF8&gt;<br/>expect_DB = {&#x27;expect&#x27;: [(1, &#x27;autotest&#x27;)], &#x27;method&#x27;: &#x27;=&#x27;, &#x27;table&#x27;: &#x27;pc.patrol_plan&#x27;, &#x27;where&#x27;: [&quot;update_time &gt; &#x27;2018-06-15 16:18:23&#x27;&quot;, &quot;plan_name=&#x27;autotest&#x27;&quot;, &#x27;delete_flag=1&#x27;]}<br/><br/>    def DB_match_check(self, expect_DB):<br/>        result = True<br/>        if len(expect_DB):<br/>            pass<br/>        else:<br/>            return<br/>    <br/>        whichone = &#x27;&#x27;<br/>        for item in expect_DB[&#x27;where&#x27;]:<br/>            if whichone:<br/>                whichone += &#x27; and &#x27;<br/>            whichone += item<br/>    <br/>        resp = self.DB_sql_send(expect_DB[&#x27;table&#x27;], whichone)<br/>        if resp:<br/>            for (id, value) in expect_DB[&#x27;expect&#x27;]:<br/>                if expect_DB[&#x27;method&#x27;] == &#x27;=&#x27;:<br/>                    if str(resp[id]) == str(value):<br/>                        self.LOG.info(&quot;%s == %s&quot; % (resp[id], value))<br/>                    else:<br/>                        self.LOG.error(&quot;%s != %s&quot; % (resp[id], value))<br/>                        result = False<br/>    <br/>                elif expect_DB[&#x27;method&#x27;] == &#x27;!=&#x27;:<br/>                    if resp[id] != value:<br/>                        self.LOG.info(&quot;%s != %s&quot; % (resp[id], value))<br/>                    else:<br/>                        self.LOG.error(&quot;%s == %s&quot; % (resp[id], value))<br/>                        result = False<br/>    <br/>                elif expect_DB[&#x27;method&#x27;] == &#x27;~&#x27;:<br/>                    if re.search(r&#x27;%s&#x27; % str(value), str(resp[id])):<br/>                        self.LOG.info(&quot;%s ~ %s&quot; % (resp[id], value))<br/>                    else:<br/>                        self.LOG.error(&quot;%s !~ %s&quot; % (resp[id], value))<br/>                        result = False<br/>    <br/>                elif expect_DB[&#x27;method&#x27;] == &#x27;!~&#x27;:<br/>                    if not re.search(r&#x27;%s&#x27; % str(value), str(resp[id])):<br/>                        self.LOG.info(&quot;%s !~ %s&quot; % (resp[id], value))<br/>                    else:<br/>                        self.LOG.error(&quot;%s ~ %s&quot; % (resp[id], value))<br/>                        result = False<br/>    <br/>                elif expect_DB[&#x27;method&#x27;] == &#x27;exist&#x27;:<br/>                    pass<br/>    <br/>                else:<br/>                    self.LOG.error(&quot;Unknow method: %s!&quot; %<br/>                                   (expect_DB[&#x27;method&#x27;]))<br/>                    result = False<br/>        else:<br/>            if expect_DB[&#x27;method&#x27;] == &#x27;unexist&#x27;:<br/>                pass<br/>            else:<br/>                self.LOG.error(&quot;%s:%s unexist!&quot; %<br/>                               (expect_DB[&#x27;table&#x27;], expect_DB[&#x27;where&#x27;]))<br/>                result = False<br/>&gt;       assert result<br/><span class="error">E       AssertionError</span><br/><br/>case_tools\case_checker.py:125: AssertionError<br/>---------------------------- Captured stderr setup -----------------------------<br/>[2018-06-15 16:18:30,203] [INFO] [case_actions.py: 157] setup start...
+[2018-06-15 16:18:30,302] [ERROR] [case_actions.py: 168] Unknow item: def1
+[2018-06-15 16:18:30,577] [INFO] [case_actions.py: 180] setup end.
+
+
+------------------------------ Captured log setup ------------------------------<br/>log_tool.py                115 INFO     [case_actions.py: 157] setup start...
+log_tool.py                142 ERROR    [case_actions.py: 168] Unknow item: def1
+log_tool.py                115 INFO     [case_actions.py: 180] setup end.----------------------------- Captured stdout call -----------------------------<br/>CMD line: Namespace(file_lists=[&#x27;add_patrol.gor&#x27;])
+----------------------------- Captured stderr call -----------------------------<br/>[2018-06-15 16:18:30,921] [INFO] [case_actions.py: 191] step add patrol start...
+[2018-06-15 16:18:31,630] [INFO] [replayit.py: 98] Let&#x27;s go!!!
+[2018-06-15 16:18:31,631] [INFO] [replay.py: 889] To replay module: add_patrol.gor...
+[2018-06-15 16:18:31,639] [DEBUG] [replay.py: 320] update_token
+[2018-06-15 16:18:31,767] [DEBUG] [replay.py: 329] Get token: eyJhbGciOiJSUzUxMiJ9.eyJzdWIiOiJ0ZXN0IiwiZXhwIjoxNTYwNTg2NzAzfQ.Hs2wie1O_Bd3nOcAQBuKxFOiLvjmGjaQZRkCAMwkw6y1miWqcH1LdGOVhd04jroJtwQ2Gn9SuQzj-ga0vhl-TxjGJ-kJJJQX869ZUy7P15k4br7U8O9ILMywJCNKd7AvVA6rqd0nEppd_YJcN1H6sZBK-Yp9Irfxf2-WrXdQZKw
+[2018-06-15 16:18:31,769] [INFO] [replay.py: 836] records\add_patrol.gor
+[2018-06-15 16:18:31,772] [DEBUG] [replay.py: 803] find ID: 636644141255240000
+[2018-06-15 16:18:31,774] [DEBUG] [replay.py: 515] URL before setup: http://192.168.0.236:81/scp-patrolapp/scheduleMng/insertSchedule
+[2018-06-15 16:18:32,129] [INFO] [replay.py: 482] exec SQL:select * from pc.patrol_param where param_name=&#x27;·��&#x27; and delete_flag=1;
+[2018-06-15 16:18:32,132] [DEBUG] [replay.py: 510] get from DB: (&#x27;5ca6bcec527e44778959d51a13314dd5&#x27;, &#x27;·��&#x27;, &#x27;100120176469bc055bdc&#x27;, None, None, 10, &#x27;����Ѳ��&#x27;, None, &#x27;0c1ba49c74774414a21ce91b66b79a2d&#x27;, None, datetime.datetime(2018, 5, 4, 21, 36, 46, 305000), None, &#x27;test&#x27;, 1)
+[2018-06-15 16:18:32,134] [DEBUG] [replay.py: 654] set config.patrol_para_uuid = &quot;5ca6bcec527e44778959d51a13314dd5&quot;
+[2018-06-15 16:18:32,134] [DEBUG] [replay.py: 539] URL after  setup: http://192.168.0.236:81/scp-patrolapp/scheduleMng/insertSchedule
+[2018-06-15 16:18:32,135] [INFO] [replay.py: 342] POST url: http://192.168.0.236:81/scp-patrolapp/scheduleMng/insertSchedule
+[2018-06-15 16:18:32,136] [DEBUG] [replay.py: 344] bodys: {&quot;paramId&quot;: &quot;5ca6bcec527e44778959d51a13314dd5&quot;, &quot;patrolPlanTimes&quot;: [{&quot;startTime&quot;: &quot;15:28:22&quot;, &quot;endTime&quot;: &quot;15:38:22&quot;}], &quot;planName&quot;: &quot;autotest&quot;, &quot;startTime&quot;: &quot;2018-06-14&quot;, &quot;endTime&quot;: &quot;2018-08-13&quot;, &quot;repeat&quot;: &quot;1,2,13&quot;, &quot;timeLong&quot;: 10}
+[2018-06-15 16:18:32,164] [INFO] [replay.py: 354] resp 500: PA215:Ѳ���ƻ�ʱ�䲻��С�ڵ�ǰ����
+[2018-06-15 16:18:32,164] [DEBUG] [replay.py: 544] teardown start...
+[2018-06-15 16:18:32,187] [INFO] [replay.py: 482] exec SQL:select * from pc.patrol_plan where plan_name=&#x27;autotest&#x27; and delete_flag=1;
+[2018-06-15 16:18:32,190] [DEBUG] [replay.py: 510] get from DB: []
+[2018-06-15 16:18:32,190] [DEBUG] [replay.py: 566] config info after teardown:
+[2018-06-15 16:18:32,190] [DEBUG] [replay.py: 646] {
+    &quot;PostgreSQL&quot;: {
+        &quot;db&quot;: &quot;hdsc_db&quot;,
+        &quot;host&quot;: &quot;192.168.0.238&quot;,
+        &quot;password&quot;: &quot;hdsc_postgres&quot;,
+        &quot;port&quot;: &quot;5432&quot;,
+        &quot;user&quot;: &quot;hdsc_postgres&quot;
+    },
+    &quot;fitter_dir&quot;: &quot;fitters\\&quot;,
+    &quot;login_url&quot;: &quot;/scp-usermgmtcomponent/admin/login?username=test&amp;password=dGVzdA==&quot;,
+    &quot;patrol_para_name&quot;: &quot;·��&quot;,
+    &quot;patrol_para_uuid&quot;: &quot;5ca6bcec527e44778959d51a13314dd5&quot;,
+    &quot;patrol_plan_name&quot;: &quot;autotest&quot;,
+    &quot;record_dir&quot;: &quot;records\\&quot;,
+    &quot;replay_files&quot;: [
+        &quot;refuse.gor&quot;
+    ],
+    &quot;result_dir&quot;: &quot;result\\&quot;,
+    &quot;server_IP&quot;: &quot;192.168.0.236&quot;,
+    &quot;server_IP2&quot;: &quot;192.168.0.86&quot;,
+    &quot;server_port&quot;: 81,
+    &quot;server_port2&quot;: 9046,
+    &quot;store&quot;: &quot;xxoo&quot;,
+    &quot;white_list_dir&quot;: &quot;white_list\\&quot;,
+    &quot;work_dir&quot;: &quot;C:\\httpapi-master&quot;
+}
+[2018-06-15 16:18:32,191] [DEBUG] [replay.py: 568] teardown end
+[2018-06-15 16:18:32,192] [DEBUG] [replay.py: 515] URL before setup: http://192.168.0.236:81/scp-patrolapp/scheduleMng/insertSchedule
+[2018-06-15 16:18:32,217] [INFO] [replay.py: 482] exec SQL:select * from pc.patrol_param where param_name=&#x27;·��&#x27; and delete_flag=1;
+[2018-06-15 16:18:32,222] [DEBUG] [replay.py: 510] get from DB: (&#x27;5ca6bcec527e44778959d51a13314dd5&#x27;, &#x27;·��&#x27;, &#x27;100120176469bc055bdc&#x27;, None, None, 10, &#x27;����Ѳ��&#x27;, None, &#x27;0c1ba49c74774414a21ce91b66b79a2d&#x27;, None, datetime.datetime(2018, 5, 4, 21, 36, 46, 305000), None, &#x27;test&#x27;, 1)
+[2018-06-15 16:18:32,223] [DEBUG] [replay.py: 654] set config.patrol_para_uuid = &quot;5ca6bcec527e44778959d51a13314dd5&quot;
+[2018-06-15 16:18:32,223] [DEBUG] [replay.py: 539] URL after  setup: http://192.168.0.236:81/scp-patrolapp/scheduleMng/insertSchedule
+[2018-06-15 16:18:32,223] [INFO] [replay.py: 851] PASS
+------------------------------
+
+
+[2018-06-15 16:18:32,239] [INFO] [replayit.py: 102] Goodbye!!!
+[2018-06-15 16:18:32,452] [INFO] [case_actions.py: 314] start actions...
+[2018-06-15 16:18:32,678] [INFO] [case_actions.py: 329] stop actions...
+[2018-06-15 16:18:32,928] [INFO] [case_checker.py: 38] check DB match...
+[2018-06-15 16:18:33,057] [INFO] [case_checker.py: 132] exec SQL:select * from pc.patrol_plan where update_time &gt; &#x27;2018-06-15 16:18:23&#x27; and plan_name=&#x27;autotest&#x27; and delete_flag=1;
+[2018-06-15 16:18:33,135] [DEBUG] [case_checker.py: 145] get from DB: []
+[2018-06-15 16:18:33,240] [ERROR] [case_checker.py: 123] pc.patrol_plan:[&quot;update_time &gt; &#x27;2018-06-15 16:18:23&#x27;&quot;, &quot;plan_name=&#x27;autotest&#x27;&quot;, &#x27;delete_flag=1&#x27;] unexist!
+------------------------------ Captured log call -------------------------------<br/>log_tool.py                115 INFO     [case_actions.py: 191] step add patrol start...
+log_tool.py                115 INFO     [case_actions.py: 314] start actions...
+log_tool.py                115 INFO     [case_actions.py: 329] stop actions...
+log_tool.py                115 INFO     [case_checker.py: 38] check DB match...
+log_tool.py                115 INFO     [case_checker.py: 132] exec SQL:select * from pc.patrol_plan where update_time &gt; &#x27;2018-06-15 16:18:23&#x27; and plan_name=&#x27;autotest&#x27; and delete_flag=1;
+log_tool.py                106 DEBUG    [case_checker.py: 145] get from DB: []
+log_tool.py                142 ERROR    [case_checker.py: 123] pc.patrol_plan:[&quot;update_time &gt; &#x27;2018-06-15 16:18:23&#x27;&quot;, &quot;plan_name=&#x27;autotest&#x27;&quot;, &#x27;delete_flag=1&#x27;] unexist!</div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">cases/test_1.py::Test_faceswipEvent::()::test</td>
+          <td class="col-duration">3.22</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log">---------------------------- Captured stderr setup -----------------------------<br/>[2018-06-15 16:18:24,345] [INFO] [case_actions.py: 157] setup start...
+[2018-06-15 16:18:24,345] [ERROR] [case_actions.py: 168] Unknow item: def1
+[2018-06-15 16:18:25,574] [WARNING] [case_actions.py: 126] sim1 is running
+[2018-06-15 16:18:25,756] [INFO] [case_actions.py: 180] setup end.
+
+
+------------------------------ Captured log setup ------------------------------<br/>log_tool.py                115 INFO     [case_actions.py: 157] setup start...
+log_tool.py                142 ERROR    [case_actions.py: 168] Unknow item: def1
+log_tool.py                115 INFO     [task.py: 45] To add task: status maintain, run_times: 10000000, internal: 100
+log_tool.py                115 INFO     [task.py: 45] To add task: monitor status report, run_times: 10000000, internal: 1
+log_tool.py                115 INFO     [task.py: 45] To add task: dev register, run_times: 1, internal: 100
+log_tool.py                115 INFO     [task.py: 45] To add task: heartbeat, run_times: 1000000, internal: 6000
+log_tool.py                124 INFO     [light_devices.py: 239] need check item: _State
+log_tool.py                133 WARNING  [light_protocol.py: 160] Try to connect (&#x27;192.168.0.247&#x27;, 20001)...
+log_tool.py                115 INFO     [my_socket.py: 193] Connection setup suceess!
+log_tool.py                115 INFO     [light_protocol.py: 166] Connection setup success!
+log_tool.py                133 WARNING  [case_actions.py: 126] sim1 is running
+log_tool.py                115 INFO     [case_actions.py: 180] setup end.----------------------------- Captured stderr call -----------------------------<br/>[2018-06-15 16:18:26,287] [INFO] [case_actions.py: 191] step test start...
+[2018-06-15 16:18:26,686] [INFO] [case_actions.py: 314] start actions...
+[2018-06-15 16:18:26,828] [INFO] [case_actions.py: 329] stop actions...
+[2018-06-15 16:18:27,187] [INFO] [case_checker.py: 38] check DB match...
+[2018-06-15 16:18:27,871] [INFO] [case_checker.py: 132] exec SQL:select * from ec.ec_event_log where start_time &gt; &#x27;2018-06-15 16:18:18&#x27; and device_code=&#x27;1005200958FCDBDA1000&#x27;;
+[2018-06-15 16:18:28,079] [DEBUG] [case_checker.py: 145] get from DB: (&#x27;c66ae70587ea4b1a91802d86343cf7a7&#x27;, 30000, datetime.datetime(2018, 6, 15, 16, 18, 18, 656000), datetime.datetime(2018, 6, 15, 16, 18, 18, 656000), &#x27;人脸开门上报&#x27;, None, &#x27;1005200958FCDBDA1000&#x27;, None, &#x27;test1&#x27;, None, 2, &#x27;{&quot;appID&quot;:&quot;APP1961&quot;,&quot;topic&quot;:&quot;MSG/EVENT/DOORACS&quot;,&quot;token&quot;:&quot;23edf6db0a17cc75&quot;,&quot;payload&quot;:{&quot;userType&quot;:null,&quot;userID&quot;:null,&quot;recordTime&quot;:&quot;2018-06-15 16:18:26&quot;,&quot;subDeviceID&quot;:&quot;1005200958FCDBDA1000&quot;,&quot;passType&quot;:0,&quot;picUrl&quot;:null,&quot;credenceNo&quot;:null},&quot;deviceID&quot;:&quot;1005200958FCDBDA1000&quot;,&quot;messageID&quot;:&quot;c66ae70587ea4b1a91802d86343cf7a7&quot;,&quot;eventStatus&quot;:0,&quot;replyFlag&quot;:null,&quot;replyToQueue&quot;:null,&quot;correlationID&quot;:&quot;&quot;,&quot;gatewayID&quot;:&quot;APP1961&quot;,&quot;timestamp&quot;:&quot;2018-06-15 16:18:18&quot;,&quot;isReplyMsg&quot;:0,&quot;eventTypeID&quot;:30000}&#x27;, &#x27;0c1ba49c74774414a21ce91b66b79a2d&#x27;, datetime.datetime(2018, 6, 15, 16, 18, 18, 862000), datetime.datetime(2018, 6, 15, 16, 18, 18, 862000), &#x27;admin&#x27;, &#x27;admin&#x27;, &#x27;496360bae346480f8aab632f56aceb33&#x27;, 1)
+[2018-06-15 16:18:28,348] [INFO] [case_checker.py: 85] 30000 == 30000
+[2018-06-15 16:18:28,515] [INFO] [case_checker.py: 85] 人脸开门上报 == 人脸开门上报
+[2018-06-15 16:18:28,705] [INFO] [case_checker.py: 85] 1005200958FCDBDA1000 == 1005200958FCDBDA1000
+[2018-06-15 16:18:28,927] [INFO] [case_actions.py: 201] step test end.
+--------------------
+
+
+[2018-06-15 16:18:29,100] [INFO] [framework.py: 78] pass
+------------------------------ Captured log call -------------------------------<br/>log_tool.py                115 INFO     [light_devices.py: 254] 发送设备注册
+log_tool.py                124 INFO     [light_protocol.py: 55] send msg: {
+    &quot;Command&quot;: &quot;COM_DEV_REGISTER&quot;,
+    &quot;Data&quot;: [
+        {
+            &quot;Type&quot;: 0,
+            &quot;deviceID&quot;: &quot;1005200958FCDBDA1000&quot;,
+            &quot;ip&quot;: &quot;192.168.0.235&quot;,
+            &quot;mac&quot;: &quot;58:FC:DB:DA:10:00&quot;,
+            &quot;manufacturer&quot;: &quot;HDIOT&quot;,
+            &quot;mask&quot;: &quot;255.255.255.0&quot;,
+            &quot;version&quot;: &quot;1.0.01&quot;
+        }
+    ]
+}
+log_tool.py                106 DEBUG    [my_socket.py: 248] client send date: 269 bytes:
+		48 44 58 4d 31 30 30 35 32 30  
+		30 39 35 38 46 43 44 42 44 41  
+		31 30 30 30 30 30 30 30 30 30  
+		30 30 30 30 30 30 30 30 30 30  
+		30 30 30 30 01 00 00 00 01 00  
+		00 00 d4 00 00 a1 30 7b 22 43  
+		6f 6d 6d 61 6e 64 22 3a 20 22  
+		43 4f 4d 5f 44 45 56 5f 52 45  
+		47 49 53 54 45 52 22 2c 20 22  
+		44 61 74 61 22 3a 20 5b 7b 22  
+		54 79 70 65 22 3a 20 30 2c 20  
+		22 64 65 76 69 63 65 49 44 22  
+		3a 20 22 31 30 30 35 32 30 30  
+		39 35 38 46 43 44 42 44 41 31  
+		30 30 30 22 2c 20 22 6d 61 6e  
+		75 66 61 63 74 75 72 65 72 22  
+		3a 20 22 48 44 49 4f 54 22 2c  
+		20 22 69 70 22 3a 20 22 31 39  
+		32 2e 31 36 38 2e 30 2e 32 33  
+		35 22 2c 20 22 6d 61 63 22 3a  
+		20 22 35 38 3a 46 43 3a 44 42  
+		3a 44 41 3a 31 30 3a 30 30 22  
+		2c 20 22 6d 61 73 6b 22 3a 20  
+		22 32 35 35 2e 32 35 35 2e 32  
+		35 35 2e 30 22 2c 20 22 76 65  
+		72 73 69 6f 6e 22 3a 20 22 31  
+		2e 30 2e 30 31 22 7d 5d 7d 
+log_tool.py                106 DEBUG    [my_socket.py: 224] client get data: 192 bytes:
+		48 44 58 4d 30 30 30 30 30 30  
+		30 30 30 30 30 30 30 41 50 50  
+		31 39 36 31 31 30 30 35 32 30  
+		30 39 35 38 46 43 44 42 44 41  
+		31 30 30 30 01 00 00 00 01 00  
+		00 00 33 00 00 a4 2c 7b 22 43  
+		6f 6d 6d 61 6e 64 22 3a 22 43  
+		4f 4d 5f 44 45 56 5f 52 45 47  
+		49 53 54 45 52 22 2c 22 44 61  
+		74 61 22 3a 5b 5d 2c 22 52 65  
+		73 75 6c 74 22 3a 30 7d 48 44  
+		58 4d 30 30 30 30 30 30 30 30  
+		30 30 30 30 30 41 50 50 31 39  
+		36 31 31 30 30 35 32 30 30 39  
+		35 38 46 43 44 42 44 41 31 30  
+		30 30 00 00 00 00 01 00 00 00  
+		1b 00 00 9f 15 7b 22 43 6f 6d  
+		6d 61 6e 64 22 3a 22 43 4f 4d  
+		5f 51 55 45 52 59 5f 44 49 52  
+		22 7d 
+log_tool.py                115 INFO     [task.py: 108] stop task:dev register
+log_tool.py                115 INFO     [case_actions.py: 191] step test start...
+log_tool.py                115 INFO     [light_protocol.py: 143] recv msg: {
+    &quot;Command&quot;: &quot;COM_DEV_REGISTER&quot;,
+    &quot;Data&quot;: [],
+    &quot;Result&quot;: 0
+}
+log_tool.py                133 WARNING  [light_devices.py: 289] 设备已经注册
+log_tool.py                133 WARNING  [light_devices.py: 268] 记录上传
+log_tool.py                115 INFO     [light_protocol.py: 143] recv msg: {
+    &quot;Command&quot;: &quot;COM_QUERY_DIR&quot;
+}
+log_tool.py                124 INFO     [light_protocol.py: 55] send msg: {
+    &quot;Command&quot;: &quot;COM_UPLOAD_RECORD&quot;,
+    &quot;Data&quot;: [
+        {
+            &quot;CredenceType&quot;: 2,
+            &quot;RecordType&quot;: 30000,
+            &quot;deviceID&quot;: &quot;1005200958FCDBDA1000&quot;,
+            &quot;passType&quot;: 0,
+            &quot;recordTime&quot;: &quot;2018-06-15 16:18:26&quot;
+        }
+    ],
+    &quot;EventCode&quot;: 30000
+}
+log_tool.py                124 INFO     [light_protocol.py: 55] send msg: {
+    &quot;Command&quot;: &quot;COM_QUERY_DIR&quot;,
+    &quot;Data&quot;: [
+        {
+            &quot;deviceID&quot;: &quot;1005200958FCDBDA1000&quot;,
+            &quot;manufacturer&quot;: &quot;HDIOT&quot;,
+            &quot;name&quot;: &quot;dog door&quot;,
+            &quot;subDeviceType&quot;: 3010,
+            &quot;version&quot;: &quot;1.0.01&quot;
+        }
+    ],
+    &quot;Result&quot;: 0
+}
+log_tool.py                106 DEBUG    [my_socket.py: 248] client send date: 249 bytes:
+		48 44 58 4d 31 30 30 35 32 30  
+		30 39 35 38 46 43 44 42 44 41  
+		31 30 30 30 30 30 30 30 30 30  
+		30 30 30 30 30 30 30 30 30 30  
+		30 30 30 30 01 00 00 00 01 00  
+		00 00 c0 00 00 ea 04 7b 22 43  
+		6f 6d 6d 61 6e 64 22 3a 20 22  
+		43 4f 4d 5f 55 50 4c 4f 41 44  
+		5f 52 45 43 4f 52 44 22 2c 20  
+		22 45 76 65 6e 74 43 6f 64 65  
+		22 3a 20 33 30 30 30 30 2c 20  
+		22 44 61 74 61 22 3a 20 5b 7b  
+		22 64 65 76 69 63 65 49 44 22  
+		3a 20 22 31 30 30 35 32 30 30  
+		39 35 38 46 43 44 42 44 41 31  
+		30 30 30 22 2c 20 22 72 65 63  
+		6f 72 64 54 69 6d 65 22 3a 20  
+		22 32 30 31 38 2d 30 36 2d 31  
+		35 20 31 36 3a 31 38 3a 32 36  
+		22 2c 20 22 52 65 63 6f 72 64  
+		54 79 70 65 22 3a 20 33 30 30  
+		30 30 2c 20 22 43 72 65 64 65  
+		6e 63 65 54 79 70 65 22 3a 20  
+		32 2c 20 22 70 61 73 73 54 79  
+		70 65 22 3a 20 30 7d 5d 7d 
+log_tool.py                106 DEBUG    [my_socket.py: 248] client send date: 235 bytes:
+		48 44 58 4d 31 30 30 35 32 30  
+		30 39 35 38 46 43 44 42 44 41  
+		31 30 30 30 30 30 30 30 30 30  
+		30 30 30 30 30 30 30 30 30 30  
+		30 30 30 30 01 00 00 00 01 00  
+		00 00 b2 00 00 e5 26 7b 22 43  
+		6f 6d 6d 61 6e 64 22 3a 20 22  
+		43 4f 4d 5f 51 55 45 52 59 5f  
+		44 49 52 22 2c 20 22 52 65 73  
+		75 6c 74 22 3a 20 30 2c 20 22  
+		44 61 74 61 22 3a 20 5b 7b 22  
+		64 65 76 69 63 65 49 44 22 3a  
+		20 22 31 30 30 35 32 30 30 39  
+		35 38 46 43 44 42 44 41 31 30  
+		30 30 22 2c 20 22 6e 61 6d 65  
+		22 3a 20 22 64 6f 67 20 64 6f  
+		6f 72 22 2c 20 22 6d 61 6e 75  
+		66 61 63 74 75 72 65 72 22 3a  
+		20 22 48 44 49 4f 54 22 2c 20  
+		22 76 65 72 73 69 6f 6e 22 3a  
+		20 22 31 2e 30 2e 30 31 22 2c  
+		20 22 73 75 62 44 65 76 69 63  
+		65 54 79 70 65 22 3a 20 33 30  
+		31 30 7d 5d 7d 
+log_tool.py                115 INFO     [case_actions.py: 314] start actions...
+log_tool.py                106 DEBUG    [my_socket.py: 224] client get data: 99 bytes:
+		48 44 58 4d 30 30 30 30 30 30  
+		30 30 30 30 30 30 30 41 50 50  
+		31 39 36 31 31 30 30 35 32 30  
+		30 39 35 38 46 43 44 42 44 41  
+		31 30 30 30 01 00 00 00 01 00  
+		00 00 2a 00 00 ce 36 7b 22 43  
+		6f 6d 6d 61 6e 64 22 3a 22 43  
+		4f 4d 5f 55 50 4c 4f 41 44 5f  
+		52 45 43 4f 52 44 22 2c 22 52  
+		65 73 75 6c 74 22 3a 30 7d 
+log_tool.py                115 INFO     [light_protocol.py: 143] recv msg: {
+    &quot;Command&quot;: &quot;COM_UPLOAD_RECORD&quot;,
+    &quot;Result&quot;: 0
+}
+log_tool.py                115 INFO     [case_actions.py: 329] stop actions...
+log_tool.py                115 INFO     [case_checker.py: 38] check DB match...
+log_tool.py                115 INFO     [case_checker.py: 132] exec SQL:select * from ec.ec_event_log where start_time &gt; &#x27;2018-06-15 16:18:18&#x27; and device_code=&#x27;1005200958FCDBDA1000&#x27;;
+log_tool.py                106 DEBUG    [case_checker.py: 145] get from DB: (&#x27;c66ae70587ea4b1a91802d86343cf7a7&#x27;, 30000, datetime.datetime(2018, 6, 15, 16, 18, 18, 656000), datetime.datetime(2018, 6, 15, 16, 18, 18, 656000), &#x27;人脸开门上报&#x27;, None, &#x27;1005200958FCDBDA1000&#x27;, None, &#x27;test1&#x27;, None, 2, &#x27;{&quot;appID&quot;:&quot;APP1961&quot;,&quot;topic&quot;:&quot;MSG/EVENT/DOORACS&quot;,&quot;token&quot;:&quot;23edf6db0a17cc75&quot;,&quot;payload&quot;:{&quot;userType&quot;:null,&quot;userID&quot;:null,&quot;recordTime&quot;:&quot;2018-06-15 16:18:26&quot;,&quot;subDeviceID&quot;:&quot;1005200958FCDBDA1000&quot;,&quot;passType&quot;:0,&quot;picUrl&quot;:null,&quot;credenceNo&quot;:null},&quot;deviceID&quot;:&quot;1005200958FCDBDA1000&quot;,&quot;messageID&quot;:&quot;c66ae70587ea4b1a91802d86343cf7a7&quot;,&quot;eventStatus&quot;:0,&quot;replyFlag&quot;:null,&quot;replyToQueue&quot;:null,&quot;correlationID&quot;:&quot;&quot;,&quot;gatewayID&quot;:&quot;APP1961&quot;,&quot;timestamp&quot;:&quot;2018-06-15 16:18:18&quot;,&quot;isReplyMsg&quot;:0,&quot;eventTypeID&quot;:30000}&#x27;, &#x27;0c1ba49c74774414a21ce91b66b79a2d&#x27;, datetime.datetime(2018, 6, 15, 16, 18, 18, 862000), datetime.datetime(2018, 6, 15, 16, 18, 18, 862000), &#x27;admin&#x27;, &#x27;admin&#x27;, &#x27;496360bae346480f8aab632f56aceb33&#x27;, 1)
+log_tool.py                115 INFO     [case_checker.py: 85] 30000 == 30000
+log_tool.py                115 INFO     [case_checker.py: 85] 人脸开门上报 == 人脸开门上报
+log_tool.py                115 INFO     [case_checker.py: 85] 1005200958FCDBDA1000 == 1005200958FCDBDA1000
+log_tool.py                115 INFO     [case_actions.py: 201] step test end.
+--------------------
+
+
+log_tool.py                115 INFO     [framework.py: 78] pass</div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">cases/test_1.py::Test_playshow::()::test</td>
+          <td class="col-duration">8.96</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log">---------------------------- Captured stderr setup -----------------------------<br/>[2018-06-15 16:18:47,116] [INFO] [case_actions.py: 157] setup start...
+[2018-06-15 16:18:50,128] [WARNING] [case_actions.py: 126] sim1 is running
+[2018-06-15 16:18:50,526] [INFO] [case_actions.py: 180] setup end.
+
+
+------------------------------ Captured log setup ------------------------------<br/>log_tool.py                115 INFO     [case_actions.py: 157] setup start...
+log_tool.py                115 INFO     [task.py: 45] To add task: status maintain, run_times: 10000000, internal: 100
+log_tool.py                115 INFO     [task.py: 45] To add task: monitor status report, run_times: 10000000, internal: 1
+log_tool.py                115 INFO     [task.py: 45] To add task: dev register, run_times: 1, internal: 100
+log_tool.py                115 INFO     [task.py: 45] To add task: heartbeat, run_times: 1000000, internal: 6000
+log_tool.py                133 WARNING  [light_protocol.py: 160] Try to connect (&#x27;192.168.0.247&#x27;, 20001)...
+log_tool.py                115 INFO     [my_socket.py: 193] Connection setup suceess!
+log_tool.py                115 INFO     [light_protocol.py: 166] Connection setup success!
+log_tool.py                124 INFO     [light_devices.py: 239] need check item: _State
+log_tool.py                133 WARNING  [case_actions.py: 126] sim1 is running
+log_tool.py                115 INFO     [case_actions.py: 180] setup end.----------------------------- Captured stdout call -----------------------------<br/>CMD line: Namespace(file_lists=[&#x27;add_info.gor&#x27;])
+CMD line: Namespace(file_lists=[&#x27;add_info.gor&#x27;, &#x27;del_info.gor&#x27;])
+----------------------------- Captured stderr call -----------------------------<br/>[2018-06-15 16:18:51,083] [INFO] [case_actions.py: 191] step add info start...
+[2018-06-15 16:18:51,859] [INFO] [replayit.py: 98] Let&#x27;s go!!!
+[2018-06-15 16:18:51,862] [INFO] [replay.py: 889] To replay module: add_info.gor...
+[2018-06-15 16:18:51,868] [DEBUG] [replay.py: 320] update_token
+[2018-06-15 16:18:51,996] [DEBUG] [replay.py: 329] Get token: eyJhbGciOiJSUzUxMiJ9.eyJzdWIiOiJ0ZXN0IiwiZXhwIjoxNTYwNTg2NzIzfQ.NVHe5G72osM88Xv-Mh8bedxTvJ6vGDYNlqZRnczQKTXbRHOobPFELhni3QiUveQ4ArKcWo9JZCd1oXeFXA9wvAm-zFwUUZc15ZTY7YZ85IT1G08GuFfBhGVlfvtL1F4Hohr8YX7IDDPkGfkUDdwv1KUNq4qLNLx5FF9PXNeMAIg
+[2018-06-15 16:18:51,998] [INFO] [replay.py: 836] records\add_info.gor
+[2018-06-15 16:18:52,000] [DEBUG] [replay.py: 803] find ID: 636646052442590000
+[2018-06-15 16:18:52,001] [DEBUG] [replay.py: 803] find ID: 636646052682100000
+[2018-06-15 16:18:52,003] [DEBUG] [replay.py: 515] URL before setup: http://192.168.0.236:81/scp-informationreleaseapp/item/insert
+[2018-06-15 16:18:52,006] [DEBUG] [replay.py: 539] URL after  setup: http://192.168.0.236:81/scp-informationreleaseapp/item/insert
+[2018-06-15 16:18:52,007] [INFO] [replay.py: 342] POST url: http://192.168.0.236:81/scp-informationreleaseapp/item/insert
+[2018-06-15 16:18:52,008] [DEBUG] [replay.py: 344] bodys: {&quot;programName&quot;: &quot;autotest&quot;, &quot;imageWidth&quot;: &quot;1920&quot;, &quot;imageHeight&quot;: &quot;1080&quot;, &quot;terminalList&quot;: [{&quot;terminalNo&quot;: &quot;1001201858FCDBDA1000&quot;}], &quot;page&quot;: {&quot;playTime&quot;: 60, &quot;id&quot;: 1, &quot;windowsList&quot;: [{&quot;positionX&quot;: 0, &quot;positionY&quot;: 0, &quot;width&quot;: 1920, &quot;height&quot;: 1700, &quot;id&quot;: 1, &quot;materialNo&quot;: &quot;88&quot;, &quot;type&quot;: 1, &quot;fontSize&quot;: &quot;&quot;, &quot;scrollDirection&quot;: &quot;&quot;, &quot;scrolSpeed&quot;: &quot;&quot;, &quot;pageTime&quot;: &quot;&quot;, &quot;childWords&quot;: &quot;\u516c\u544a\u5ba3\u4f201.png&quot;, &quot;isShowText&quot;: true}, {&quot;positionX&quot;: 0, &quot;positionY&quot;: 1700, &quot;width&quot;: 1920, &quot;height&quot;: 220, &quot;id&quot;: 2, &quot;materialNo&quot;: &quot;88&quot;, &quot;type&quot;: 1, &quot;fontSize&quot;: &quot;&quot;, &quot;scrollDirection&quot;: &quot;&quot;, &quot;scrolSpeed&quot;: &quot;&quot;, &quot;pageTime&quot;: &quot;&quot;, &quot;childWords&quot;: &quot;\u516c\u544a\u5ba3\u4f201.png&quot;, &quot;isShowText&quot;: true}]}}
+[2018-06-15 16:18:52,036] [INFO] [replay.py: 354] resp 500: ID32:��Ŀ���Ʋ����ظ�
+[2018-06-15 16:18:52,038] [DEBUG] [replay.py: 544] teardown start...
+[2018-06-15 16:18:52,038] [DEBUG] [replay.py: 566] config info after teardown:
+[2018-06-15 16:18:52,039] [DEBUG] [replay.py: 646] {
+    &quot;PostgreSQL&quot;: {
+        &quot;db&quot;: &quot;hdsc_db&quot;,
+        &quot;host&quot;: &quot;192.168.0.238&quot;,
+        &quot;password&quot;: &quot;hdsc_postgres&quot;,
+        &quot;port&quot;: &quot;5432&quot;,
+        &quot;user&quot;: &quot;hdsc_postgres&quot;
+    },
+    &quot;fitter_dir&quot;: &quot;fitters\\&quot;,
+    &quot;login_url&quot;: &quot;/scp-usermgmtcomponent/admin/login?username=test&amp;password=dGVzdA==&quot;,
+    &quot;patrol_para_name&quot;: &quot;·��&quot;,
+    &quot;patrol_plan_name&quot;: &quot;autotest&quot;,
+    &quot;record_dir&quot;: &quot;records\\&quot;,
+    &quot;replay_files&quot;: [
+        &quot;refuse.gor&quot;
+    ],
+    &quot;result_dir&quot;: &quot;result\\&quot;,
+    &quot;server_IP&quot;: &quot;192.168.0.236&quot;,
+    &quot;server_IP2&quot;: &quot;192.168.0.86&quot;,
+    &quot;server_port&quot;: 81,
+    &quot;server_port2&quot;: 9046,
+    &quot;white_list_dir&quot;: &quot;white_list\\&quot;,
+    &quot;work_dir&quot;: &quot;C:\\httpapi-master&quot;
+}
+[2018-06-15 16:18:52,039] [DEBUG] [replay.py: 568] teardown end
+[2018-06-15 16:18:52,040] [DEBUG] [replay.py: 515] URL before setup: http://192.168.0.236:81/scp-informationreleaseapp/item/insert
+[2018-06-15 16:18:52,040] [DEBUG] [replay.py: 539] URL after  setup: http://192.168.0.236:81/scp-informationreleaseapp/item/insert
+[2018-06-15 16:18:52,041] [INFO] [replay.py: 851] PASS
+------------------------------
+
+
+[2018-06-15 16:18:52,041] [DEBUG] [replay.py: 515] URL before setup: http://192.168.0.236:81/scp-informationreleaseapp/schedule/insert
+[2018-06-15 16:18:52,042] [DEBUG] [replay.py: 539] URL after  setup: http://192.168.0.236:81/scp-informationreleaseapp/schedule/insert
+[2018-06-15 16:18:52,042] [INFO] [replay.py: 342] POST url: http://192.168.0.236:81/scp-informationreleaseapp/schedule/insert
+[2018-06-15 16:18:52,043] [DEBUG] [replay.py: 344] bodys: {&quot;scheduleName&quot;: &quot;autotest&quot;, &quot;scheduleType&quot;: &quot;daily&quot;, &quot;programNo&quot;: &quot;406ff63bd7cc46adbdb14234acdb1215&quot;, &quot;deviceId&quot;: &quot;1001201858FCDBDA1000&quot;, &quot;dailySchedule&quot;: {&quot;platspan&quot;: [&quot;20:34:21&quot;, &quot;21:35:21&quot;]}, &quot;weekSchedule&quot;: [{&quot;dayOfWeek&quot;: &quot;\u661f\u671f\u4e00&quot;, &quot;id&quot;: &quot;1&quot;, &quot;weekValue&quot;: null}, {&quot;dayOfWeek&quot;: &quot;\u661f\u671f\u4e8c&quot;, &quot;id&quot;: &quot;2&quot;, &quot;weekValue&quot;: null}, {&quot;dayOfWeek&quot;: &quot;\u661f\u671f\u4e09&quot;, &quot;id&quot;: &quot;3&quot;, &quot;weekValue&quot;: null}, {&quot;dayOfWeek&quot;: &quot;\u661f\u671f\u56db&quot;, &quot;id&quot;: &quot;4&quot;, &quot;weekValue&quot;: null}, {&quot;dayOfWeek&quot;: &quot;\u661f\u671f\u4e94&quot;, &quot;id&quot;: &quot;5&quot;, &quot;weekValue&quot;: null}, {&quot;dayOfWeek&quot;: &quot;\u661f\u671f\u516d&quot;, &quot;id&quot;: &quot;6&quot;, &quot;weekValue&quot;: null}, {&quot;dayOfWeek&quot;: &quot;\u661f\u671f\u65e5&quot;, &quot;id&quot;: &quot;7&quot;, &quot;weekValue&quot;: null}]}
+[2018-06-15 16:18:52,085] [INFO] [replay.py: 352] resp 200: {
+    &quot;code&quot;: &quot;00000&quot;,
+    &quot;data&quot;: null,
+    &quot;message&quot;: &quot;�ɹ�&quot;
+}
+[2018-06-15 16:18:52,086] [DEBUG] [replay.py: 544] teardown start...
+[2018-06-15 16:18:52,456] [INFO] [replay.py: 482] exec SQL:select * from id.id_schedule where schedule_name=&#x27;autotest&#x27; and delete_flag=1;
+[2018-06-15 16:18:52,463] [DEBUG] [replay.py: 510] get from DB: (&#x27;0aada11dbc464ab08d8bf8cde3e2a21b&#x27;, &#x27;autotest&#x27;, None, None, &#x27;normal&#x27;, &#x27;daily&#x27;, &#x27;{&quot;playSpan&quot;:[{&quot;beginTime&quot;:&quot;20180615T203421+08&quot;,&quot;endTime&quot;:&quot;20180615T213521+08&quot;,&quot;id&quot;:1,&quot;programNo&quot;:1}]}&#x27;, None, None, &#x27;approved&#x27;, &#x27;addFailed&#x27;, &#x27;406ff63bd7cc46adbdb14234acdb1215&#x27;, &#x27;1001201858FCDBDA1000&#x27;, 1, None, &#x27;test&#x27;, None, datetime.datetime(2018, 6, 15, 16, 18, 44, 59000), datetime.datetime(2018, 6, 15, 16, 18, 44, 59000))
+[2018-06-15 16:18:52,463] [DEBUG] [replay.py: 654] set config.schedule_uuid = &quot;0aada11dbc464ab08d8bf8cde3e2a21b&quot;
+[2018-06-15 16:18:52,463] [DEBUG] [replay.py: 566] config info after teardown:
+[2018-06-15 16:18:52,464] [DEBUG] [replay.py: 646] {
+    &quot;PostgreSQL&quot;: {
+        &quot;db&quot;: &quot;hdsc_db&quot;,
+        &quot;host&quot;: &quot;192.168.0.238&quot;,
+        &quot;password&quot;: &quot;hdsc_postgres&quot;,
+        &quot;port&quot;: &quot;5432&quot;,
+        &quot;user&quot;: &quot;hdsc_postgres&quot;
+    },
+    &quot;fitter_dir&quot;: &quot;fitters\\&quot;,
+    &quot;login_url&quot;: &quot;/scp-usermgmtcomponent/admin/login?username=test&amp;password=dGVzdA==&quot;,
+    &quot;patrol_para_name&quot;: &quot;·��&quot;,
+    &quot;patrol_plan_name&quot;: &quot;autotest&quot;,
+    &quot;record_dir&quot;: &quot;records\\&quot;,
+    &quot;replay_files&quot;: [
+        &quot;refuse.gor&quot;
+    ],
+    &quot;result_dir&quot;: &quot;result\\&quot;,
+    &quot;schedule_uuid&quot;: &quot;0aada11dbc464ab08d8bf8cde3e2a21b&quot;,
+    &quot;server_IP&quot;: &quot;192.168.0.236&quot;,
+    &quot;server_IP2&quot;: &quot;192.168.0.86&quot;,
+    &quot;server_port&quot;: 81,
+    &quot;server_port2&quot;: 9046,
+    &quot;white_list_dir&quot;: &quot;white_list\\&quot;,
+    &quot;work_dir&quot;: &quot;C:\\httpapi-master&quot;
+}
+[2018-06-15 16:18:52,465] [DEBUG] [replay.py: 568] teardown end
+[2018-06-15 16:18:52,465] [DEBUG] [replay.py: 515] URL before setup: http://192.168.0.236:81/scp-informationreleaseapp/item/insert
+[2018-06-15 16:18:52,467] [DEBUG] [replay.py: 539] URL after  setup: http://192.168.0.236:81/scp-informationreleaseapp/item/insert
+[2018-06-15 16:18:52,467] [INFO] [replay.py: 851] PASS
+------------------------------
+
+
+[2018-06-15 16:18:52,481] [INFO] [replayit.py: 102] Goodbye!!!
+[2018-06-15 16:18:52,894] [INFO] [case_actions.py: 314] start actions...
+[2018-06-15 16:18:53,351] [INFO] [case_actions.py: 329] stop actions...
+[2018-06-15 16:18:53,603] [INFO] [case_checker.py: 38] check DB match...
+[2018-06-15 16:18:53,734] [INFO] [case_checker.py: 132] exec SQL:select * from id.id_schedule where update_time &gt; &#x27;2018-06-15 16:18:19&#x27; and schedule_name=&#x27;autotest&#x27; and delete_flag=1;
+[2018-06-15 16:18:54,059] [DEBUG] [case_checker.py: 145] get from DB: (&#x27;0aada11dbc464ab08d8bf8cde3e2a21b&#x27;, &#x27;autotest&#x27;, None, None, &#x27;normal&#x27;, &#x27;daily&#x27;, &#x27;{&quot;playSpan&quot;:[{&quot;beginTime&quot;:&quot;20180615T203421+08&quot;,&quot;endTime&quot;:&quot;20180615T213521+08&quot;,&quot;id&quot;:1,&quot;programNo&quot;:1}]}&#x27;, None, None, &#x27;approved&#x27;, &#x27;addFailed&#x27;, &#x27;406ff63bd7cc46adbdb14234acdb1215&#x27;, &#x27;1001201858FCDBDA1000&#x27;, 1, None, &#x27;test&#x27;, None, datetime.datetime(2018, 6, 15, 16, 18, 44, 59000), datetime.datetime(2018, 6, 15, 16, 18, 44, 59000))
+[2018-06-15 16:18:54,382] [INFO] [case_checker.py: 85] autotest == autotest
+[2018-06-15 16:18:54,528] [INFO] [case_checker.py: 42] check sim match...
+[2018-06-15 16:18:54,720] [INFO] [case_checker.py: 53] 1 = 1
+[2018-06-15 16:18:54,867] [INFO] [case_actions.py: 201] step add info end.
+--------------------
+
+
+[2018-06-15 16:18:55,047] [INFO] [case_actions.py: 191] step del info start...
+[2018-06-15 16:18:55,771] [INFO] [replayit.py: 98] Let&#x27;s go!!!
+[2018-06-15 16:18:55,773] [INFO] [replay.py: 889] To replay module: add_info.gor...
+[2018-06-15 16:18:55,777] [DEBUG] [replay.py: 320] update_token
+[2018-06-15 16:18:55,891] [DEBUG] [replay.py: 329] Get token: eyJhbGciOiJSUzUxMiJ9.eyJzdWIiOiJ0ZXN0IiwiZXhwIjoxNTYwNTg2NzI3fQ.bs2sUGTjcJqdveYBAPzfWTFZ_dujVxTjIv7ifqvWMDU9mR-eG1iowWlBPC239f_P5Ls_9zznCUoPj52E_Jo5zNI5Nxj0gioQdXykF5As-DyvYcka_AnCidi1eRHh-WfliBIxBIshguyl5wTAbgnxeNDTqdbFg2ubRZmbOiP2GS4
+[2018-06-15 16:18:55,891] [INFO] [replay.py: 836] records\add_info.gor
+[2018-06-15 16:18:55,894] [DEBUG] [replay.py: 803] find ID: 636646052442590000
+[2018-06-15 16:18:55,895] [DEBUG] [replay.py: 803] find ID: 636646052682100000
+[2018-06-15 16:18:55,896] [DEBUG] [replay.py: 515] URL before setup: http://192.168.0.236:81/scp-informationreleaseapp/item/insert
+[2018-06-15 16:18:55,897] [DEBUG] [replay.py: 539] URL after  setup: http://192.168.0.236:81/scp-informationreleaseapp/item/insert
+[2018-06-15 16:18:55,899] [INFO] [replay.py: 342] POST url: http://192.168.0.236:81/scp-informationreleaseapp/item/insert
+[2018-06-15 16:18:55,899] [DEBUG] [replay.py: 344] bodys: {&quot;programName&quot;: &quot;autotest&quot;, &quot;imageWidth&quot;: &quot;1920&quot;, &quot;imageHeight&quot;: &quot;1080&quot;, &quot;terminalList&quot;: [{&quot;terminalNo&quot;: &quot;1001201858FCDBDA1000&quot;}], &quot;page&quot;: {&quot;playTime&quot;: 60, &quot;id&quot;: 1, &quot;windowsList&quot;: [{&quot;positionX&quot;: 0, &quot;positionY&quot;: 0, &quot;width&quot;: 1920, &quot;height&quot;: 1700, &quot;id&quot;: 1, &quot;materialNo&quot;: &quot;88&quot;, &quot;type&quot;: 1, &quot;fontSize&quot;: &quot;&quot;, &quot;scrollDirection&quot;: &quot;&quot;, &quot;scrolSpeed&quot;: &quot;&quot;, &quot;pageTime&quot;: &quot;&quot;, &quot;childWords&quot;: &quot;\u516c\u544a\u5ba3\u4f201.png&quot;, &quot;isShowText&quot;: true}, {&quot;positionX&quot;: 0, &quot;positionY&quot;: 1700, &quot;width&quot;: 1920, &quot;height&quot;: 220, &quot;id&quot;: 2, &quot;materialNo&quot;: &quot;88&quot;, &quot;type&quot;: 1, &quot;fontSize&quot;: &quot;&quot;, &quot;scrollDirection&quot;: &quot;&quot;, &quot;scrolSpeed&quot;: &quot;&quot;, &quot;pageTime&quot;: &quot;&quot;, &quot;childWords&quot;: &quot;\u516c\u544a\u5ba3\u4f201.png&quot;, &quot;isShowText&quot;: true}]}}
+[2018-06-15 16:18:55,929] [INFO] [replay.py: 354] resp 500: ID32:��Ŀ���Ʋ����ظ�
+[2018-06-15 16:18:55,930] [DEBUG] [replay.py: 544] teardown start...
+[2018-06-15 16:18:55,931] [DEBUG] [replay.py: 566] config info after teardown:
+[2018-06-15 16:18:55,931] [DEBUG] [replay.py: 646] {
+    &quot;PostgreSQL&quot;: {
+        &quot;db&quot;: &quot;hdsc_db&quot;,
+        &quot;host&quot;: &quot;192.168.0.238&quot;,
+        &quot;password&quot;: &quot;hdsc_postgres&quot;,
+        &quot;port&quot;: &quot;5432&quot;,
+        &quot;user&quot;: &quot;hdsc_postgres&quot;
+    },
+    &quot;fitter_dir&quot;: &quot;fitters\\&quot;,
+    &quot;login_url&quot;: &quot;/scp-usermgmtcomponent/admin/login?username=test&amp;password=dGVzdA==&quot;,
+    &quot;patrol_para_name&quot;: &quot;·��&quot;,
+    &quot;patrol_plan_name&quot;: &quot;autotest&quot;,
+    &quot;record_dir&quot;: &quot;records\\&quot;,
+    &quot;replay_files&quot;: [
+        &quot;refuse.gor&quot;
+    ],
+    &quot;result_dir&quot;: &quot;result\\&quot;,
+    &quot;server_IP&quot;: &quot;192.168.0.236&quot;,
+    &quot;server_IP2&quot;: &quot;192.168.0.86&quot;,
+    &quot;server_port&quot;: 81,
+    &quot;server_port2&quot;: 9046,
+    &quot;white_list_dir&quot;: &quot;white_list\\&quot;,
+    &quot;work_dir&quot;: &quot;C:\\httpapi-master&quot;
+}
+[2018-06-15 16:18:55,932] [DEBUG] [replay.py: 568] teardown end
+[2018-06-15 16:18:55,932] [DEBUG] [replay.py: 515] URL before setup: http://192.168.0.236:81/scp-informationreleaseapp/item/insert
+[2018-06-15 16:18:55,934] [DEBUG] [replay.py: 539] URL after  setup: http://192.168.0.236:81/scp-informationreleaseapp/item/insert
+[2018-06-15 16:18:55,934] [INFO] [replay.py: 851] PASS
+------------------------------
+
+
+[2018-06-15 16:18:55,935] [DEBUG] [replay.py: 515] URL before setup: http://192.168.0.236:81/scp-informationreleaseapp/schedule/insert
+[2018-06-15 16:18:55,935] [DEBUG] [replay.py: 539] URL after  setup: http://192.168.0.236:81/scp-informationreleaseapp/schedule/insert
+[2018-06-15 16:18:55,936] [INFO] [replay.py: 342] POST url: http://192.168.0.236:81/scp-informationreleaseapp/schedule/insert
+[2018-06-15 16:18:55,936] [DEBUG] [replay.py: 344] bodys: {&quot;scheduleName&quot;: &quot;autotest&quot;, &quot;scheduleType&quot;: &quot;daily&quot;, &quot;programNo&quot;: &quot;406ff63bd7cc46adbdb14234acdb1215&quot;, &quot;deviceId&quot;: &quot;1001201858FCDBDA1000&quot;, &quot;dailySchedule&quot;: {&quot;platspan&quot;: [&quot;20:34:21&quot;, &quot;21:35:21&quot;]}, &quot;weekSchedule&quot;: [{&quot;dayOfWeek&quot;: &quot;\u661f\u671f\u4e00&quot;, &quot;id&quot;: &quot;1&quot;, &quot;weekValue&quot;: null}, {&quot;dayOfWeek&quot;: &quot;\u661f\u671f\u4e8c&quot;, &quot;id&quot;: &quot;2&quot;, &quot;weekValue&quot;: null}, {&quot;dayOfWeek&quot;: &quot;\u661f\u671f\u4e09&quot;, &quot;id&quot;: &quot;3&quot;, &quot;weekValue&quot;: null}, {&quot;dayOfWeek&quot;: &quot;\u661f\u671f\u56db&quot;, &quot;id&quot;: &quot;4&quot;, &quot;weekValue&quot;: null}, {&quot;dayOfWeek&quot;: &quot;\u661f\u671f\u4e94&quot;, &quot;id&quot;: &quot;5&quot;, &quot;weekValue&quot;: null}, {&quot;dayOfWeek&quot;: &quot;\u661f\u671f\u516d&quot;, &quot;id&quot;: &quot;6&quot;, &quot;weekValue&quot;: null}, {&quot;dayOfWeek&quot;: &quot;\u661f\u671f\u65e5&quot;, &quot;id&quot;: &quot;7&quot;, &quot;weekValue&quot;: null}]}
+[2018-06-15 16:18:55,968] [INFO] [replay.py: 354] resp 500: ID029:�ճ������Ѵ���
+[2018-06-15 16:18:55,969] [DEBUG] [replay.py: 544] teardown start...
+[2018-06-15 16:18:56,339] [INFO] [replay.py: 482] exec SQL:select * from id.id_schedule where schedule_name=&#x27;autotest&#x27; and delete_flag=1;
+[2018-06-15 16:18:56,343] [DEBUG] [replay.py: 510] get from DB: (&#x27;0aada11dbc464ab08d8bf8cde3e2a21b&#x27;, &#x27;autotest&#x27;, None, None, &#x27;normal&#x27;, &#x27;daily&#x27;, &#x27;{&quot;playSpan&quot;:[{&quot;beginTime&quot;:&quot;20180615T203421+08&quot;,&quot;endTime&quot;:&quot;20180615T213521+08&quot;,&quot;id&quot;:1,&quot;programNo&quot;:1}]}&#x27;, None, None, &#x27;approved&#x27;, &#x27;addFailed&#x27;, &#x27;406ff63bd7cc46adbdb14234acdb1215&#x27;, &#x27;1001201858FCDBDA1000&#x27;, 1, None, &#x27;test&#x27;, None, datetime.datetime(2018, 6, 15, 16, 18, 44, 59000), datetime.datetime(2018, 6, 15, 16, 18, 44, 59000))
+[2018-06-15 16:18:56,344] [DEBUG] [replay.py: 654] set config.schedule_uuid = &quot;0aada11dbc464ab08d8bf8cde3e2a21b&quot;
+[2018-06-15 16:18:56,345] [DEBUG] [replay.py: 566] config info after teardown:
+[2018-06-15 16:18:56,345] [DEBUG] [replay.py: 646] {
+    &quot;PostgreSQL&quot;: {
+        &quot;db&quot;: &quot;hdsc_db&quot;,
+        &quot;host&quot;: &quot;192.168.0.238&quot;,
+        &quot;password&quot;: &quot;hdsc_postgres&quot;,
+        &quot;port&quot;: &quot;5432&quot;,
+        &quot;user&quot;: &quot;hdsc_postgres&quot;
+    },
+    &quot;fitter_dir&quot;: &quot;fitters\\&quot;,
+    &quot;login_url&quot;: &quot;/scp-usermgmtcomponent/admin/login?username=test&amp;password=dGVzdA==&quot;,
+    &quot;patrol_para_name&quot;: &quot;·��&quot;,
+    &quot;patrol_plan_name&quot;: &quot;autotest&quot;,
+    &quot;record_dir&quot;: &quot;records\\&quot;,
+    &quot;replay_files&quot;: [
+        &quot;refuse.gor&quot;
+    ],
+    &quot;result_dir&quot;: &quot;result\\&quot;,
+    &quot;schedule_uuid&quot;: &quot;0aada11dbc464ab08d8bf8cde3e2a21b&quot;,
+    &quot;server_IP&quot;: &quot;192.168.0.236&quot;,
+    &quot;server_IP2&quot;: &quot;192.168.0.86&quot;,
+    &quot;server_port&quot;: 81,
+    &quot;server_port2&quot;: 9046,
+    &quot;white_list_dir&quot;: &quot;white_list\\&quot;,
+    &quot;work_dir&quot;: &quot;C:\\httpapi-master&quot;
+}
+[2018-06-15 16:18:56,345] [DEBUG] [replay.py: 568] teardown end
+[2018-06-15 16:18:56,347] [DEBUG] [replay.py: 515] URL before setup: http://192.168.0.236:81/scp-informationreleaseapp/item/insert
+[2018-06-15 16:18:56,348] [DEBUG] [replay.py: 539] URL after  setup: http://192.168.0.236:81/scp-informationreleaseapp/item/insert
+[2018-06-15 16:18:56,348] [WARNING] [replay.py: 848] url: http://192.168.0.236:81/scp-informationreleaseapp/schedule/insert{
+    &quot;response code&quot;: &quot;200 vs 500&quot;
+}
+[2018-06-15 16:18:56,348] [ERROR] [replay.py: 849] FAIL
+------------------------------
+
+
+[2018-06-15 16:18:56,363] [INFO] [replay.py: 889] To replay module: del_info.gor...
+[2018-06-15 16:18:56,367] [DEBUG] [replay.py: 320] update_token
+[2018-06-15 16:18:56,494] [DEBUG] [replay.py: 329] Get token: eyJhbGciOiJSUzUxMiJ9.eyJzdWIiOiJ0ZXN0IiwiZXhwIjoxNTYwNTg2NzI4fQ.anAMybpPyRM5U1Z3PxMI3e-3gMQLoCNvEkH0i_3mfxep-vC8yfbBrScTzyQyX9JdiokxT3aACCBlD_1hY_NMaAJ50LtQw6rCinCK4bTJ3mFMcrD_TgPOLIJUOEk9VaS-begJDtR6EfYIQfNy7_9IHyXgzFT5b2YIdrUyYGdkhYI
+[2018-06-15 16:18:56,495] [INFO] [replay.py: 836] records\del_info.gor
+[2018-06-15 16:18:56,496] [DEBUG] [replay.py: 803] find ID: 636646052756520000
+[2018-06-15 16:18:56,496] [DEBUG] [replay.py: 515] URL before setup: http://192.168.0.236:81/scp-informationreleaseapp/schedule/delete?id=eca96c5b6fae4eda8f5c633fc0a9444d
+[2018-06-15 16:18:56,499] [DEBUG] [replay.py: 539] URL after  setup: http://192.168.0.236:81/scp-informationreleaseapp/schedule/delete?id=0aada11dbc464ab08d8bf8cde3e2a21b
+[2018-06-15 16:18:56,500] [INFO] [replay.py: 366] GET url: http://192.168.0.236:81/scp-informationreleaseapp/schedule/delete?id=0aada11dbc464ab08d8bf8cde3e2a21b
+[2018-06-15 16:18:56,500] [DEBUG] [replay.py: 368] bodys: {}
+[2018-06-15 16:18:56,528] [INFO] [replay.py: 376] resp 200: {
+    &quot;code&quot;: &quot;00000&quot;,
+    &quot;data&quot;: null,
+    &quot;message&quot;: &quot;�ɹ�&quot;
+}
+[2018-06-15 16:18:56,529] [DEBUG] [replay.py: 544] teardown start...
+[2018-06-15 16:18:56,529] [DEBUG] [replay.py: 566] config info after teardown:
+[2018-06-15 16:18:56,531] [DEBUG] [replay.py: 646] {
+    &quot;PostgreSQL&quot;: {
+        &quot;db&quot;: &quot;hdsc_db&quot;,
+        &quot;host&quot;: &quot;192.168.0.238&quot;,
+        &quot;password&quot;: &quot;hdsc_postgres&quot;,
+        &quot;port&quot;: &quot;5432&quot;,
+        &quot;user&quot;: &quot;hdsc_postgres&quot;
+    },
+    &quot;fitter_dir&quot;: &quot;fitters\\&quot;,
+    &quot;login_url&quot;: &quot;/scp-usermgmtcomponent/admin/login?username=test&amp;password=dGVzdA==&quot;,
+    &quot;patrol_para_name&quot;: &quot;·��&quot;,
+    &quot;patrol_plan_name&quot;: &quot;autotest&quot;,
+    &quot;record_dir&quot;: &quot;records\\&quot;,
+    &quot;replay_files&quot;: [
+        &quot;refuse.gor&quot;
+    ],
+    &quot;result_dir&quot;: &quot;result\\&quot;,
+    &quot;schedule_uuid&quot;: &quot;0aada11dbc464ab08d8bf8cde3e2a21b&quot;,
+    &quot;server_IP&quot;: &quot;192.168.0.236&quot;,
+    &quot;server_IP2&quot;: &quot;192.168.0.86&quot;,
+    &quot;server_port&quot;: 81,
+    &quot;server_port2&quot;: 9046,
+    &quot;store&quot;: &quot;xxoo&quot;,
+    &quot;white_list_dir&quot;: &quot;white_list\\&quot;,
+    &quot;work_dir&quot;: &quot;C:\\httpapi-master&quot;
+}
+[2018-06-15 16:18:56,532] [DEBUG] [replay.py: 568] teardown end
+[2018-06-15 16:18:56,532] [DEBUG] [replay.py: 515] URL before setup: http://192.168.0.236:81/scp-informationreleaseapp/schedule/insert
+[2018-06-15 16:18:56,534] [DEBUG] [replay.py: 539] URL after  setup: http://192.168.0.236:81/scp-informationreleaseapp/schedule/insert
+[2018-06-15 16:18:56,534] [INFO] [replay.py: 851] PASS
+------------------------------
+
+
+[2018-06-15 16:18:56,548] [INFO] [replayit.py: 102] Goodbye!!!
+[2018-06-15 16:18:57,022] [INFO] [case_checker.py: 38] check DB match...
+[2018-06-15 16:18:57,550] [INFO] [case_checker.py: 132] exec SQL:select * from id.id_schedule where update_time &gt; &#x27;2018-06-15 16:18:19&#x27; and schedule_name=&#x27;autotest&#x27; and delete_flag=0;
+[2018-06-15 16:18:58,055] [DEBUG] [case_checker.py: 145] get from DB: (&#x27;0aada11dbc464ab08d8bf8cde3e2a21b&#x27;, &#x27;autotest&#x27;, None, None, &#x27;normal&#x27;, &#x27;daily&#x27;, &#x27;{&quot;playSpan&quot;:[{&quot;beginTime&quot;:&quot;20180615T203421+08&quot;,&quot;endTime&quot;:&quot;20180615T213521+08&quot;,&quot;id&quot;:1,&quot;programNo&quot;:1}]}&#x27;, None, None, &#x27;approved&#x27;, &#x27;addFailed&#x27;, &#x27;406ff63bd7cc46adbdb14234acdb1215&#x27;, &#x27;1001201858FCDBDA1000&#x27;, 0, None, &#x27;test&#x27;, None, datetime.datetime(2018, 6, 15, 16, 18, 44, 59000), datetime.datetime(2018, 6, 15, 16, 18, 44, 59000))
+[2018-06-15 16:18:58,365] [INFO] [case_checker.py: 85] autotest == autotest
+[2018-06-15 16:18:58,591] [INFO] [case_checker.py: 42] check sim match...
+[2018-06-15 16:18:58,846] [INFO] [case_checker.py: 53] 1 = 1
+[2018-06-15 16:18:59,286] [INFO] [case_actions.py: 201] step del info end.
+--------------------
+
+
+[2018-06-15 16:18:59,545] [INFO] [framework.py: 78] pass
+------------------------------ Captured log call -------------------------------<br/>log_tool.py                115 INFO     [case_actions.py: 191] step add info start...
+log_tool.py                115 INFO     [light_devices.py: 254] 发送设备注册
+log_tool.py                124 INFO     [light_protocol.py: 55] send msg: {
+    &quot;Command&quot;: &quot;COM_DEV_REGISTER&quot;,
+    &quot;Data&quot;: [
+        {
+            &quot;Type&quot;: 0,
+            &quot;deviceID&quot;: &quot;1001201858FCDBDA1000&quot;,
+            &quot;ip&quot;: &quot;192.168.0.235&quot;,
+            &quot;mac&quot;: &quot;58:FC:DB:DA:10:00&quot;,
+            &quot;manufacturer&quot;: &quot;HDIOT&quot;,
+            &quot;mask&quot;: &quot;255.255.255.0&quot;,
+            &quot;version&quot;: &quot;1.0.01&quot;
+        }
+    ]
+}
+log_tool.py                115 INFO     [task.py: 108] stop task:dev register
+log_tool.py                115 INFO     [case_actions.py: 314] start actions...
+log_tool.py                106 DEBUG    [my_socket.py: 248] client send date: 269 bytes:
+		48 44 58 4d 31 30 30 31 32 30  
+		31 38 35 38 46 43 44 42 44 41  
+		31 30 30 30 30 30 30 30 30 30  
+		30 30 30 30 30 30 30 30 30 30  
+		30 30 30 30 01 00 00 00 01 00  
+		00 00 d4 00 00 b1 55 7b 22 43  
+		6f 6d 6d 61 6e 64 22 3a 20 22  
+		43 4f 4d 5f 44 45 56 5f 52 45  
+		47 49 53 54 45 52 22 2c 20 22  
+		44 61 74 61 22 3a 20 5b 7b 22  
+		54 79 70 65 22 3a 20 30 2c 20  
+		22 64 65 76 69 63 65 49 44 22  
+		3a 20 22 31 30 30 31 32 30 31  
+		38 35 38 46 43 44 42 44 41 31  
+		30 30 30 22 2c 20 22 6d 61 6e  
+		75 66 61 63 74 75 72 65 72 22  
+		3a 20 22 48 44 49 4f 54 22 2c  
+		20 22 69 70 22 3a 20 22 31 39  
+		32 2e 31 36 38 2e 30 2e 32 33  
+		35 22 2c 20 22 6d 61 63 22 3a  
+		20 22 35 38 3a 46 43 3a 44 42  
+		3a 44 41 3a 31 30 3a 30 30 22  
+		2c 20 22 6d 61 73 6b 22 3a 20  
+		22 32 35 35 2e 32 35 35 2e 32  
+		35 35 2e 30 22 2c 20 22 76 65  
+		72 73 69 6f 6e 22 3a 20 22 31  
+		2e 30 2e 30 31 22 7d 5d 7d 
+log_tool.py                106 DEBUG    [my_socket.py: 224] client get data: 192 bytes:
+		48 44 58 4d 30 30 30 30 30 30  
+		30 30 30 30 30 30 30 41 50 50  
+		31 39 36 31 31 30 30 31 32 30  
+		31 38 35 38 46 43 44 42 44 41  
+		31 30 30 30 01 00 00 00 01 00  
+		00 00 33 00 00 a4 2c 7b 22 43  
+		6f 6d 6d 61 6e 64 22 3a 22 43  
+		4f 4d 5f 44 45 56 5f 52 45 47  
+		49 53 54 45 52 22 2c 22 44 61  
+		74 61 22 3a 5b 5d 2c 22 52 65  
+		73 75 6c 74 22 3a 30 7d 48 44  
+		58 4d 30 30 30 30 30 30 30 30  
+		30 30 30 30 30 41 50 50 31 39  
+		36 31 31 30 30 31 32 30 31 38  
+		35 38 46 43 44 42 44 41 31 30  
+		30 30 00 00 00 00 01 00 00 00  
+		1b 00 00 9f 15 7b 22 43 6f 6d  
+		6d 61 6e 64 22 3a 22 43 4f 4d  
+		5f 51 55 45 52 59 5f 44 49 52  
+		22 7d 
+log_tool.py                115 INFO     [light_protocol.py: 143] recv msg: {
+    &quot;Command&quot;: &quot;COM_DEV_REGISTER&quot;,
+    &quot;Data&quot;: [],
+    &quot;Result&quot;: 0
+}
+log_tool.py                115 INFO     [case_actions.py: 329] stop actions...
+log_tool.py                133 WARNING  [light_devices.py: 289] 设备已经注册
+log_tool.py                115 INFO     [case_checker.py: 38] check DB match...
+log_tool.py                115 INFO     [case_checker.py: 132] exec SQL:select * from id.id_schedule where update_time &gt; &#x27;2018-06-15 16:18:19&#x27; and schedule_name=&#x27;autotest&#x27; and delete_flag=1;
+log_tool.py                115 INFO     [light_protocol.py: 143] recv msg: {
+    &quot;Command&quot;: &quot;COM_QUERY_DIR&quot;
+}
+log_tool.py                124 INFO     [light_protocol.py: 55] send msg: {
+    &quot;Command&quot;: &quot;COM_QUERY_DIR&quot;,
+    &quot;Data&quot;: [
+        {
+            &quot;deviceID&quot;: &quot;1001201858FCDBDA1000&quot;,
+            &quot;manufacturer&quot;: &quot;HDIOT&quot;,
+            &quot;name&quot;: &quot;cat door&quot;,
+            &quot;subDeviceType&quot;: 3010,
+            &quot;version&quot;: &quot;1.0.01&quot;
+        }
+    ],
+    &quot;Result&quot;: 0
+}
+log_tool.py                106 DEBUG    [my_socket.py: 248] client send date: 235 bytes:
+		48 44 58 4d 31 30 30 31 32 30  
+		31 38 35 38 46 43 44 42 44 41  
+		31 30 30 30 30 30 30 30 30 30  
+		30 30 30 30 30 30 30 30 30 30  
+		30 30 30 30 01 00 00 00 01 00  
+		00 00 b2 00 00 82 c3 7b 22 43  
+		6f 6d 6d 61 6e 64 22 3a 20 22  
+		43 4f 4d 5f 51 55 45 52 59 5f  
+		44 49 52 22 2c 20 22 52 65 73  
+		75 6c 74 22 3a 20 30 2c 20 22  
+		44 61 74 61 22 3a 20 5b 7b 22  
+		64 65 76 69 63 65 49 44 22 3a  
+		20 22 31 30 30 31 32 30 31 38  
+		35 38 46 43 44 42 44 41 31 30  
+		30 30 22 2c 20 22 6e 61 6d 65  
+		22 3a 20 22 63 61 74 20 64 6f  
+		6f 72 22 2c 20 22 6d 61 6e 75  
+		66 61 63 74 75 72 65 72 22 3a  
+		20 22 48 44 49 4f 54 22 2c 20  
+		22 76 65 72 73 69 6f 6e 22 3a  
+		20 22 31 2e 30 2e 30 31 22 2c  
+		20 22 73 75 62 44 65 76 69 63  
+		65 54 79 70 65 22 3a 20 33 30  
+		31 30 7d 5d 7d 
+log_tool.py                106 DEBUG    [case_checker.py: 145] get from DB: (&#x27;0aada11dbc464ab08d8bf8cde3e2a21b&#x27;, &#x27;autotest&#x27;, None, None, &#x27;normal&#x27;, &#x27;daily&#x27;, &#x27;{&quot;playSpan&quot;:[{&quot;beginTime&quot;:&quot;20180615T203421+08&quot;,&quot;endTime&quot;:&quot;20180615T213521+08&quot;,&quot;id&quot;:1,&quot;programNo&quot;:1}]}&#x27;, None, None, &#x27;approved&#x27;, &#x27;addFailed&#x27;, &#x27;406ff63bd7cc46adbdb14234acdb1215&#x27;, &#x27;1001201858FCDBDA1000&#x27;, 1, None, &#x27;test&#x27;, None, datetime.datetime(2018, 6, 15, 16, 18, 44, 59000), datetime.datetime(2018, 6, 15, 16, 18, 44, 59000))
+log_tool.py                115 INFO     [case_checker.py: 85] autotest == autotest
+log_tool.py                115 INFO     [case_checker.py: 42] check sim match...
+log_tool.py                115 INFO     [case_checker.py: 53] 1 = 1
+log_tool.py                115 INFO     [case_actions.py: 201] step add info end.
+--------------------
+
+
+log_tool.py                115 INFO     [case_actions.py: 191] step del info start...
+log_tool.py                115 INFO     [case_checker.py: 38] check DB match...
+log_tool.py                115 INFO     [case_checker.py: 132] exec SQL:select * from id.id_schedule where update_time &gt; &#x27;2018-06-15 16:18:19&#x27; and schedule_name=&#x27;autotest&#x27; and delete_flag=0;
+log_tool.py                106 DEBUG    [case_checker.py: 145] get from DB: (&#x27;0aada11dbc464ab08d8bf8cde3e2a21b&#x27;, &#x27;autotest&#x27;, None, None, &#x27;normal&#x27;, &#x27;daily&#x27;, &#x27;{&quot;playSpan&quot;:[{&quot;beginTime&quot;:&quot;20180615T203421+08&quot;,&quot;endTime&quot;:&quot;20180615T213521+08&quot;,&quot;id&quot;:1,&quot;programNo&quot;:1}]}&#x27;, None, None, &#x27;approved&#x27;, &#x27;addFailed&#x27;, &#x27;406ff63bd7cc46adbdb14234acdb1215&#x27;, &#x27;1001201858FCDBDA1000&#x27;, 0, None, &#x27;test&#x27;, None, datetime.datetime(2018, 6, 15, 16, 18, 44, 59000), datetime.datetime(2018, 6, 15, 16, 18, 44, 59000))
+log_tool.py                115 INFO     [case_checker.py: 85] autotest == autotest
+log_tool.py                115 INFO     [case_checker.py: 42] check sim match...
+log_tool.py                115 INFO     [case_checker.py: 53] 1 = 1
+log_tool.py                115 INFO     [case_actions.py: 201] step del info end.
+--------------------
+
+
+log_tool.py                115 INFO     [framework.py: 78] pass</div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">cases/test_1.py::Test_visitorQrcode::()::test</td>
+          <td class="col-duration">20.58</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log">---------------------------- Captured stderr setup -----------------------------<br/>[2018-06-15 16:19:01,947] [INFO] [case_actions.py: 157] setup start...
+[2018-06-15 16:19:02,488] [INFO] [case_checker.py: 132] exec SQL:select * from mdc.base_user where name=&#x27;刘德华&#x27; and delete_flag=1;
+[2018-06-15 16:19:02,827] [DEBUG] [case_checker.py: 145] get from DB: (&#x27;95bdc081d89f486c84071db97fdce552&#x27;, &#x27;刘德华&#x27;, &#x27;1&#x27;, datetime.date(1988, 8, 8), &#x27;111&#x27;, &#x27;211223198808088888&#x27;, &#x27;1&#x27;, &#x27;阿富汗&#x27;, &#x27;&#x27;, &#x27;18823840858&#x27;, &#x27;&#x27;, &#x27;&#x27;, 1, &#x27;0c1ba49c74774414a21ce91b66b79a2d&#x27;, datetime.datetime(2018, 6, 11, 11, 28, 41), datetime.datetime(2018, 6, 11, 14, 23, 29), &#x27;test&#x27;, &#x27;admin&#x27;, None, None, None, &#x27;group1/M00/4D/E9/wKgA9lseFTqAGrDIAAHUVSWe90c725.jpg&#x27;, None, &#x27;&#x27;, &#x27;&#x27;, &#x27;1&#x27;, &#x27;group1/M00/4D/E9/wKgA9lseFTqAGrDIAAHUVSWe90c725.jpg&#x27;, &#x27;0&#x27;)
+[2018-06-15 16:19:03,440] [DEBUG] [case_actions.py: 82] set config.user_uuid = &quot;95bdc081d89f486c84071db97fdce552&quot;
+[2018-06-15 16:19:04,060] [DEBUG] [case_actions.py: 82] set config.user_name = &quot;刘德华&quot;
+[2018-06-15 16:19:04,641] [INFO] [case_checker.py: 132] exec SQL:select * from mdc.base_house_user_rel where user_uuid=&#x27;95bdc081d89f486c84071db97fdce552&#x27; and delete_flag=1;
+[2018-06-15 16:19:05,003] [DEBUG] [case_checker.py: 145] get from DB: (&#x27;cff4e04f6bc74479909d357d3d6283b0&#x27;, &#x27;95bdc081d89f486c84071db97fdce552&#x27;, 1, &#x27;0c1ba49c74774414a21ce91b66b79a2d&#x27;, datetime.datetime(2018, 6, 11, 11, 28, 41), datetime.datetime(2018, 6, 11, 11, 28, 41), &#x27;test&#x27;, &#x27;test&#x27;, &#x27;1&#x27;, &#x27;f8d48a635e444222bab34a8dc5557af8&#x27;)
+[2018-06-15 16:19:05,265] [DEBUG] [case_actions.py: 82] set config.user_houseId = &quot;cff4e04f6bc74479909d357d3d6283b0&quot;
+[2018-06-15 16:19:05,559] [DEBUG] [case_actions.py: 82] set config.user_type = &quot;1&quot;
+[2018-06-15 16:19:05,809] [DEBUG] [case_actions.py: 146] run: self.update_token()
+[2018-06-15 16:19:05,984] [INFO] [case_actions.py: 41] update_token
+[2018-06-15 16:19:06,233] [DEBUG] [case_actions.py: 44] http://192.168.0.236:81//scp-usermgmtcomponent/admin/login?username=test&amp;password=dGVzdA==
+[2018-06-15 16:19:08,447] [DEBUG] [case_actions.py: 52] Get token: eyJhbGciOiJSUzUxMiJ9.eyJzdWIiOiJ0ZXN0IiwiZXhwIjoxNTYwNTg2NzM5fQ.noalKtsKhNSXa502q4Y321zSOuQ7CILWAVY7-MR19kDlQRIQ7gbyQc1KWt_IVdk8f0pM2H6mI_MgALPDEiDphgg6J2ekW6EvQrEprNS86CQi3W3QoHOr15Q4BoXwri3WeDNc3pGC-wG7LsnDVAWJR4D4c4iRmQwHiG3qC3uQj7A
+[2018-06-15 16:19:08,700] [DEBUG] [case_actions.py: 146] run: self.update_config_by_tuple(&quot;userID&quot;, &#x27;1529050704.319&#x27;)
+[2018-06-15 16:19:08,825] [DEBUG] [case_actions.py: 107] set config.userID = &quot;1529050704.319&quot;
+[2018-06-15 16:19:12,043] [WARNING] [case_actions.py: 126] sim1 is running
+[2018-06-15 16:19:12,931] [INFO] [case_actions.py: 180] setup end.
+
+
+------------------------------ Captured log setup ------------------------------<br/>log_tool.py                115 INFO     [case_actions.py: 157] setup start...
+log_tool.py                115 INFO     [case_checker.py: 132] exec SQL:select * from mdc.base_user where name=&#x27;刘德华&#x27; and delete_flag=1;
+log_tool.py                106 DEBUG    [case_checker.py: 145] get from DB: (&#x27;95bdc081d89f486c84071db97fdce552&#x27;, &#x27;刘德华&#x27;, &#x27;1&#x27;, datetime.date(1988, 8, 8), &#x27;111&#x27;, &#x27;211223198808088888&#x27;, &#x27;1&#x27;, &#x27;阿富汗&#x27;, &#x27;&#x27;, &#x27;18823840858&#x27;, &#x27;&#x27;, &#x27;&#x27;, 1, &#x27;0c1ba49c74774414a21ce91b66b79a2d&#x27;, datetime.datetime(2018, 6, 11, 11, 28, 41), datetime.datetime(2018, 6, 11, 14, 23, 29), &#x27;test&#x27;, &#x27;admin&#x27;, None, None, None, &#x27;group1/M00/4D/E9/wKgA9lseFTqAGrDIAAHUVSWe90c725.jpg&#x27;, None, &#x27;&#x27;, &#x27;&#x27;, &#x27;1&#x27;, &#x27;group1/M00/4D/E9/wKgA9lseFTqAGrDIAAHUVSWe90c725.jpg&#x27;, &#x27;0&#x27;)
+log_tool.py                106 DEBUG    [case_actions.py: 82] set config.user_uuid = &quot;95bdc081d89f486c84071db97fdce552&quot;
+log_tool.py                106 DEBUG    [case_actions.py: 82] set config.user_name = &quot;刘德华&quot;
+log_tool.py                115 INFO     [case_checker.py: 132] exec SQL:select * from mdc.base_house_user_rel where user_uuid=&#x27;95bdc081d89f486c84071db97fdce552&#x27; and delete_flag=1;
+log_tool.py                106 DEBUG    [case_checker.py: 145] get from DB: (&#x27;cff4e04f6bc74479909d357d3d6283b0&#x27;, &#x27;95bdc081d89f486c84071db97fdce552&#x27;, 1, &#x27;0c1ba49c74774414a21ce91b66b79a2d&#x27;, datetime.datetime(2018, 6, 11, 11, 28, 41), datetime.datetime(2018, 6, 11, 11, 28, 41), &#x27;test&#x27;, &#x27;test&#x27;, &#x27;1&#x27;, &#x27;f8d48a635e444222bab34a8dc5557af8&#x27;)
+log_tool.py                106 DEBUG    [case_actions.py: 82] set config.user_houseId = &quot;cff4e04f6bc74479909d357d3d6283b0&quot;
+log_tool.py                106 DEBUG    [case_actions.py: 82] set config.user_type = &quot;1&quot;
+log_tool.py                106 DEBUG    [case_actions.py: 146] run: self.update_token()
+log_tool.py                115 INFO     [case_actions.py: 41] update_token
+log_tool.py                106 DEBUG    [case_actions.py: 44] http://192.168.0.236:81//scp-usermgmtcomponent/admin/login?username=test&amp;password=dGVzdA==
+log_tool.py                106 DEBUG    [case_actions.py: 52] Get token: eyJhbGciOiJSUzUxMiJ9.eyJzdWIiOiJ0ZXN0IiwiZXhwIjoxNTYwNTg2NzM5fQ.noalKtsKhNSXa502q4Y321zSOuQ7CILWAVY7-MR19kDlQRIQ7gbyQc1KWt_IVdk8f0pM2H6mI_MgALPDEiDphgg6J2ekW6EvQrEprNS86CQi3W3QoHOr15Q4BoXwri3WeDNc3pGC-wG7LsnDVAWJR4D4c4iRmQwHiG3qC3uQj7A
+log_tool.py                106 DEBUG    [case_actions.py: 146] run: self.update_config_by_tuple(&quot;userID&quot;, &#x27;1529050704.319&#x27;)
+log_tool.py                106 DEBUG    [case_actions.py: 107] set config.userID = &quot;1529050704.319&quot;
+log_tool.py                115 INFO     [task.py: 45] To add task: status maintain, run_times: 10000000, internal: 100
+log_tool.py                115 INFO     [task.py: 45] To add task: monitor status report, run_times: 10000000, internal: 1
+log_tool.py                115 INFO     [task.py: 45] To add task: dev register, run_times: 1, internal: 100
+log_tool.py                115 INFO     [task.py: 45] To add task: heartbeat, run_times: 1000000, internal: 6000
+log_tool.py                133 WARNING  [light_protocol.py: 160] Try to connect (&#x27;192.168.0.247&#x27;, 20001)...
+log_tool.py                124 INFO     [light_devices.py: 239] need check item: _State
+log_tool.py                115 INFO     [my_socket.py: 193] Connection setup suceess!
+log_tool.py                115 INFO     [light_protocol.py: 166] Connection setup success!
+log_tool.py                133 WARNING  [case_actions.py: 126] sim1 is running
+log_tool.py                115 INFO     [case_actions.py: 180] setup end.----------------------------- Captured stderr call -----------------------------<br/>[2018-06-15 16:19:13,776] [INFO] [case_actions.py: 191] step test start...
+[2018-06-15 16:19:14,372] [DEBUG] [case_actions.py: 247] http://192.168.0.236:9046/api/visitorQrCode/getVisitorQrCode
+[2018-06-15 16:19:15,131] [DEBUG] [case_actions.py: 249] send msg: {
+    &quot;data&quot;: {
+        &quot;businessId&quot;: &quot;string&quot;,
+        &quot;cardId&quot;: &quot;string&quot;,
+        &quot;cloudPic&quot;: [
+            -1,
+            2,
+            3,
+            4,
+            5,
+            5,
+            6,
+            74
+        ],
+        &quot;company&quot;: &quot;string&quot;,
+        &quot;courtUuid&quot;: &quot;string&quot;,
+        &quot;createTime&quot;: &quot;2018-06-04T00:34:58.286Z&quot;,
+        &quot;createUser&quot;: &quot;string&quot;,
+        &quot;currentFaceId&quot;: &quot;string&quot;,
+        &quot;currentFacePic&quot;: &quot;string&quot;,
+        &quot;currentFingerPrint&quot;: &quot;string&quot;,
+        &quot;currentLadderFlag&quot;: &quot;string&quot;,
+        &quot;deleteFlag&quot;: 0,
+        &quot;effectCount&quot;: 10,
+        &quot;endTime&quot;: &quot;2018-07-09T02:55:58.286Z&quot;,
+        &quot;extAttributes&quot;: {},
+        &quot;faceId&quot;: &quot;string&quot;,
+        &quot;facePic&quot;: &quot;string&quot;,
+        &quot;fingerPrint&quot;: &quot;string&quot;,
+        &quot;focusOnPersonnel&quot;: &quot;string&quot;,
+        &quot;houseAddr&quot;: &quot;string&quot;,
+        &quot;houseId&quot;: &quot;cff4e04f6bc74479909d357d3d6283b0&quot;,
+        &quot;idenNum&quot;: &quot;string&quot;,
+        &quot;idenType&quot;: &quot;string&quot;,
+        &quot;name&quot;: &quot;XJJ&quot;,
+        &quot;passCode&quot;: &quot;string&quot;,
+        &quot;personId&quot;: &quot;95bdc081d89f486c84071db97fdce552&quot;,
+        &quot;personName&quot;: &quot;刘德华&quot;,
+        &quot;personType&quot;: &quot;1&quot;,
+        &quot;phone&quot;: &quot;string&quot;,
+        &quot;plateNum&quot;: &quot;string&quot;,
+        &quot;qrCode&quot;: &quot;string&quot;,
+        &quot;reasonType&quot;: &quot;string&quot;,
+        &quot;recordSum&quot;: 5,
+        &quot;sex&quot;: &quot;string&quot;,
+        &quot;sourceSysId&quot;: &quot;string&quot;,
+        &quot;startTime&quot;: &quot;2018-06-04T00:55:58.286Z&quot;,
+        &quot;targetSysId&quot;: &quot;string&quot;,
+        &quot;updateTime&quot;: &quot;2018-06-04T00:55:58.286Z&quot;,
+        &quot;updateUser&quot;: &quot;string&quot;,
+        &quot;uuid&quot;: &quot;string&quot;,
+        &quot;visitorCnt&quot;: 0,
+        &quot;visitorType&quot;: &quot;4&quot;,
+        &quot;visitorUuid&quot;: &quot;1529050704.319&quot;
+    },
+    &quot;header&quot;: {
+        &quot;businessId&quot;: &quot;string&quot;,
+        &quot;charset&quot;: &quot;string&quot;,
+        &quot;contentType&quot;: &quot;string&quot;,
+        &quot;createTimestamp&quot;: 0,
+        &quot;extAttributes&quot;: {},
+        &quot;sourceSysId&quot;: &quot;string&quot;,
+        &quot;targetSysId&quot;: &quot;string&quot;
+    }
+}
+[2018-06-15 16:19:16,500] [DEBUG] [case_actions.py: 271] recv msg: {
+    &quot;code&quot;: &quot;00000&quot;,
+    &quot;data&quot;: {
+        &quot;passWord&quot;: &quot;621437&quot;,
+        &quot;qrCode&quot;: &quot;e9cf882c230f4cf0851a4e407cb0a512&quot;
+    },
+    &quot;message&quot;: &quot;&quot;
+}
+[2018-06-15 16:19:16,846] [INFO] [case_actions.py: 314] start actions...
+[2018-06-15 16:19:17,136] [DEBUG] [case_actions.py: 98] set config.OT_password=621437
+[2018-06-15 16:19:17,526] [DEBUG] [case_actions.py: 98] set config.qrCode=e9cf882c230f4cf0851a4e407cb0a512
+[2018-06-15 16:19:17,807] [DEBUG] [case_actions.py: 146] run: self.make_qrcode(&quot;e9cf882c230f4cf0851a4e407cb0a512&quot;, &quot;621437&quot;)
+[2018-06-15 16:19:28,064] [INFO] [case_actions.py: 329] stop actions...
+[2018-06-15 16:19:28,959] [INFO] [case_checker.py: 30] check resp match...
+[2018-06-15 16:19:29,779] [INFO] [common_methods.py: 64] Found (&#x27;code&#x27;, &#x27;00000&#x27;)
+[2018-06-15 16:19:30,604] [INFO] [case_checker.py: 42] check sim match...
+[2018-06-15 16:19:30,755] [INFO] [case_checker.py: 53] 8 = 8
+[2018-06-15 16:19:31,271] [INFO] [case_checker.py: 53] e9cf882c230f4cf0851a4e407cb0a512 = e9cf882c230f4cf0851a4e407cb0a512
+[2018-06-15 16:19:32,007] [INFO] [case_checker.py: 53] 1529050704.319 = 1529050704.319
+[2018-06-15 16:19:32,792] [INFO] [case_actions.py: 201] step test end.
+--------------------
+
+
+[2018-06-15 16:19:33,467] [INFO] [framework.py: 78] pass
+------------------------------ Captured log call -------------------------------<br/>log_tool.py                115 INFO     [case_actions.py: 191] step test start...
+log_tool.py                115 INFO     [light_devices.py: 254] 发送设备注册
+log_tool.py                124 INFO     [light_protocol.py: 55] send msg: {
+    &quot;Command&quot;: &quot;COM_DEV_REGISTER&quot;,
+    &quot;Data&quot;: [
+        {
+            &quot;Type&quot;: 0,
+            &quot;deviceID&quot;: &quot;1005200958FCDBDA1000&quot;,
+            &quot;ip&quot;: &quot;192.168.0.235&quot;,
+            &quot;mac&quot;: &quot;58:FC:DB:DA:10:00&quot;,
+            &quot;manufacturer&quot;: &quot;HDIOT&quot;,
+            &quot;mask&quot;: &quot;255.255.255.0&quot;,
+            &quot;version&quot;: &quot;1.0.01&quot;
+        }
+    ]
+}
+log_tool.py                106 DEBUG    [case_actions.py: 247] http://192.168.0.236:9046/api/visitorQrCode/getVisitorQrCode
+log_tool.py                115 INFO     [task.py: 108] stop task:dev register
+log_tool.py                106 DEBUG    [my_socket.py: 248] client send date: 269 bytes:
+		48 44 58 4d 31 30 30 35 32 30  
+		30 39 35 38 46 43 44 42 44 41  
+		31 30 30 30 30 30 30 30 30 30  
+		30 30 30 30 30 30 30 30 30 30  
+		30 30 30 30 01 00 00 00 01 00  
+		00 00 d4 00 00 a1 30 7b 22 43  
+		6f 6d 6d 61 6e 64 22 3a 20 22  
+		43 4f 4d 5f 44 45 56 5f 52 45  
+		47 49 53 54 45 52 22 2c 20 22  
+		44 61 74 61 22 3a 20 5b 7b 22  
+		54 79 70 65 22 3a 20 30 2c 20  
+		22 64 65 76 69 63 65 49 44 22  
+		3a 20 22 31 30 30 35 32 30 30  
+		39 35 38 46 43 44 42 44 41 31  
+		30 30 30 22 2c 20 22 6d 61 6e  
+		75 66 61 63 74 75 72 65 72 22  
+		3a 20 22 48 44 49 4f 54 22 2c  
+		20 22 69 70 22 3a 20 22 31 39  
+		32 2e 31 36 38 2e 30 2e 32 33  
+		35 22 2c 20 22 6d 61 63 22 3a  
+		20 22 35 38 3a 46 43 3a 44 42  
+		3a 44 41 3a 31 30 3a 30 30 22  
+		2c 20 22 6d 61 73 6b 22 3a 20  
+		22 32 35 35 2e 32 35 35 2e 32  
+		35 35 2e 30 22 2c 20 22 76 65  
+		72 73 69 6f 6e 22 3a 20 22 31  
+		2e 30 2e 30 31 22 7d 5d 7d 
+log_tool.py                106 DEBUG    [case_actions.py: 249] send msg: {
+    &quot;data&quot;: {
+        &quot;businessId&quot;: &quot;string&quot;,
+        &quot;cardId&quot;: &quot;string&quot;,
+        &quot;cloudPic&quot;: [
+            -1,
+            2,
+            3,
+            4,
+            5,
+            5,
+            6,
+            74
+        ],
+        &quot;company&quot;: &quot;string&quot;,
+        &quot;courtUuid&quot;: &quot;string&quot;,
+        &quot;createTime&quot;: &quot;2018-06-04T00:34:58.286Z&quot;,
+        &quot;createUser&quot;: &quot;string&quot;,
+        &quot;currentFaceId&quot;: &quot;string&quot;,
+        &quot;currentFacePic&quot;: &quot;string&quot;,
+        &quot;currentFingerPrint&quot;: &quot;string&quot;,
+        &quot;currentLadderFlag&quot;: &quot;string&quot;,
+        &quot;deleteFlag&quot;: 0,
+        &quot;effectCount&quot;: 10,
+        &quot;endTime&quot;: &quot;2018-07-09T02:55:58.286Z&quot;,
+        &quot;extAttributes&quot;: {},
+        &quot;faceId&quot;: &quot;string&quot;,
+        &quot;facePic&quot;: &quot;string&quot;,
+        &quot;fingerPrint&quot;: &quot;string&quot;,
+        &quot;focusOnPersonnel&quot;: &quot;string&quot;,
+        &quot;houseAddr&quot;: &quot;string&quot;,
+        &quot;houseId&quot;: &quot;cff4e04f6bc74479909d357d3d6283b0&quot;,
+        &quot;idenNum&quot;: &quot;string&quot;,
+        &quot;idenType&quot;: &quot;string&quot;,
+        &quot;name&quot;: &quot;XJJ&quot;,
+        &quot;passCode&quot;: &quot;string&quot;,
+        &quot;personId&quot;: &quot;95bdc081d89f486c84071db97fdce552&quot;,
+        &quot;personName&quot;: &quot;刘德华&quot;,
+        &quot;personType&quot;: &quot;1&quot;,
+        &quot;phone&quot;: &quot;string&quot;,
+        &quot;plateNum&quot;: &quot;string&quot;,
+        &quot;qrCode&quot;: &quot;string&quot;,
+        &quot;reasonType&quot;: &quot;string&quot;,
+        &quot;recordSum&quot;: 5,
+        &quot;sex&quot;: &quot;string&quot;,
+        &quot;sourceSysId&quot;: &quot;string&quot;,
+        &quot;startTime&quot;: &quot;2018-06-04T00:55:58.286Z&quot;,
+        &quot;targetSysId&quot;: &quot;string&quot;,
+        &quot;updateTime&quot;: &quot;2018-06-04T00:55:58.286Z&quot;,
+        &quot;updateUser&quot;: &quot;string&quot;,
+        &quot;uuid&quot;: &quot;string&quot;,
+        &quot;visitorCnt&quot;: 0,
+        &quot;visitorType&quot;: &quot;4&quot;,
+        &quot;visitorUuid&quot;: &quot;1529050704.319&quot;
+    },
+    &quot;header&quot;: {
+        &quot;businessId&quot;: &quot;string&quot;,
+        &quot;charset&quot;: &quot;string&quot;,
+        &quot;contentType&quot;: &quot;string&quot;,
+        &quot;createTimestamp&quot;: 0,
+        &quot;extAttributes&quot;: {},
+        &quot;sourceSysId&quot;: &quot;string&quot;,
+        &quot;targetSysId&quot;: &quot;string&quot;
+    }
+}
+log_tool.py                106 DEBUG    [my_socket.py: 224] client get data: 192 bytes:
+		48 44 58 4d 30 30 30 30 30 30  
+		30 30 30 30 30 30 30 41 50 50  
+		31 39 36 31 31 30 30 35 32 30  
+		30 39 35 38 46 43 44 42 44 41  
+		31 30 30 30 01 00 00 00 01 00  
+		00 00 33 00 00 a4 2c 7b 22 43  
+		6f 6d 6d 61 6e 64 22 3a 22 43  
+		4f 4d 5f 44 45 56 5f 52 45 47  
+		49 53 54 45 52 22 2c 22 44 61  
+		74 61 22 3a 5b 5d 2c 22 52 65  
+		73 75 6c 74 22 3a 30 7d 48 44  
+		58 4d 30 30 30 30 30 30 30 30  
+		30 30 30 30 30 41 50 50 31 39  
+		36 31 31 30 30 35 32 30 30 39  
+		35 38 46 43 44 42 44 41 31 30  
+		30 30 00 00 00 00 01 00 00 00  
+		1b 00 00 9f 15 7b 22 43 6f 6d  
+		6d 61 6e 64 22 3a 22 43 4f 4d  
+		5f 51 55 45 52 59 5f 44 49 52  
+		22 7d 
+log_tool.py                115 INFO     [light_protocol.py: 143] recv msg: {
+    &quot;Command&quot;: &quot;COM_DEV_REGISTER&quot;,
+    &quot;Data&quot;: [],
+    &quot;Result&quot;: 0
+}
+log_tool.py                133 WARNING  [light_devices.py: 289] 设备已经注册
+log_tool.py                115 INFO     [light_protocol.py: 143] recv msg: {
+    &quot;Command&quot;: &quot;COM_QUERY_DIR&quot;
+}
+log_tool.py                124 INFO     [light_protocol.py: 55] send msg: {
+    &quot;Command&quot;: &quot;COM_QUERY_DIR&quot;,
+    &quot;Data&quot;: [
+        {
+            &quot;deviceID&quot;: &quot;1005200958FCDBDA1000&quot;,
+            &quot;manufacturer&quot;: &quot;HDIOT&quot;,
+            &quot;name&quot;: &quot;dog door&quot;,
+            &quot;subDeviceType&quot;: 3010,
+            &quot;version&quot;: &quot;1.0.01&quot;
+        }
+    ],
+    &quot;Result&quot;: 0
+}
+log_tool.py                106 DEBUG    [my_socket.py: 224] client get data: 340 bytes:
+		48 44 58 4d 30 30 30 30 30 30  
+		30 30 30 30 30 30 30 41 50 50  
+		31 39 36 31 31 30 30 35 32 30  
+		30 39 35 38 46 43 44 42 44 41  
+		31 30 30 30 00 00 00 02 5d 00  
+		00 01 1b 00 00 8e b2 7b 22 43  
+		6f 6d 6d 61 6e 64 22 3a 22 43  
+		4f 4d 5f 4c 4f 41 44 5f 43 45  
+		52 54 49 46 49 43 41 54 45 22  
+		2c 22 44 61 74 61 22 3a 5b 7b  
+		22 43 72 65 64 65 6e 63 65 54  
+		79 70 65 22 3a 38 2c 22 55 73  
+		65 72 54 79 70 65 22 3a 34 2c  
+		22 63 72 65 64 65 6e 63 65 4e  
+		6f 22 3a 22 65 39 63 66 38 38  
+		32 63 32 33 30 66 34 63 66 30  
+		38 35 31 61 34 65 34 30 37 63  
+		62 30 61 35 31 32 22 2c 22 65  
+		6e 64 54 69 6d 65 22 3a 22 32  
+		30 31 38 2d 30 37 2d 30 39 20  
+		31 30 3a 35 35 3a 35 38 22 2c  
+		22 6f 70 54 69 6d 65 22 3a 22  
+		32 30 31 38 2d 30 36 2d 31 35  
+		20 31 36 3a 31 39 3a 30 37 22  
+		2c 22 73 74 61 72 74 54 69 6d  
+		65 22 3a 22 32 30 31 38 2d 30  
+		36 2d 30 34 20 30 38 3a 35 35  
+		3a 35 38 22 2c 22 73 75 62 44  
+		65 76 69 63 65 49 44 22 3a 22  
+		33 30 31 33 46 43 44 42 44 41  
+		31 30 30 30 30 30 30 30 30 31  
+		22 2c 22 75 73 65 72 49 44 22  
+		3a 22 31 35 32 39 30 35 30 37  
+		30 34 2e 33 31 39 22 7d 5d 7d  
+		
+log_tool.py                106 DEBUG    [my_socket.py: 248] client send date: 235 bytes:
+		48 44 58 4d 31 30 30 35 32 30  
+		30 39 35 38 46 43 44 42 44 41  
+		31 30 30 30 30 30 30 30 30 30  
+		30 30 30 30 30 30 30 30 30 30  
+		30 30 30 30 01 00 00 00 01 00  
+		00 00 b2 00 00 e5 26 7b 22 43  
+		6f 6d 6d 61 6e 64 22 3a 20 22  
+		43 4f 4d 5f 51 55 45 52 59 5f  
+		44 49 52 22 2c 20 22 52 65 73  
+		75 6c 74 22 3a 20 30 2c 20 22  
+		44 61 74 61 22 3a 20 5b 7b 22  
+		64 65 76 69 63 65 49 44 22 3a  
+		20 22 31 30 30 35 32 30 30 39  
+		35 38 46 43 44 42 44 41 31 30  
+		30 30 22 2c 20 22 6e 61 6d 65  
+		22 3a 20 22 64 6f 67 20 64 6f  
+		6f 72 22 2c 20 22 6d 61 6e 75  
+		66 61 63 74 75 72 65 72 22 3a  
+		20 22 48 44 49 4f 54 22 2c 20  
+		22 76 65 72 73 69 6f 6e 22 3a  
+		20 22 31 2e 30 2e 30 31 22 2c  
+		20 22 73 75 62 44 65 76 69 63  
+		65 54 79 70 65 22 3a 20 33 30  
+		31 30 7d 5d 7d 
+log_tool.py                106 DEBUG    [case_actions.py: 271] recv msg: {
+    &quot;code&quot;: &quot;00000&quot;,
+    &quot;data&quot;: {
+        &quot;passWord&quot;: &quot;621437&quot;,
+        &quot;qrCode&quot;: &quot;e9cf882c230f4cf0851a4e407cb0a512&quot;
+    },
+    &quot;message&quot;: &quot;&quot;
+}
+log_tool.py                115 INFO     [light_protocol.py: 143] recv msg: {
+    &quot;Command&quot;: &quot;COM_LOAD_CERTIFICATE&quot;,
+    &quot;Data&quot;: [
+        {
+            &quot;CredenceType&quot;: 8,
+            &quot;UserType&quot;: 4,
+            &quot;credenceNo&quot;: &quot;e9cf882c230f4cf0851a4e407cb0a512&quot;,
+            &quot;endTime&quot;: &quot;2018-07-09 10:55:58&quot;,
+            &quot;opTime&quot;: &quot;2018-06-15 16:19:07&quot;,
+            &quot;startTime&quot;: &quot;2018-06-04 08:55:58&quot;,
+            &quot;subDeviceID&quot;: &quot;3013FCDBDA1000000001&quot;,
+            &quot;userID&quot;: &quot;1529050704.319&quot;
+        }
+    ]
+}
+log_tool.py                115 INFO     [case_actions.py: 314] start actions...
+log_tool.py                124 INFO     [light_protocol.py: 55] send msg: {
+    &quot;Command&quot;: &quot;COM_LOAD_CERTIFICATE&quot;,
+    &quot;Result&quot;: 0
+}
+log_tool.py                106 DEBUG    [case_actions.py: 98] set config.OT_password=621437
+log_tool.py                106 DEBUG    [my_socket.py: 248] client send date: 105 bytes:
+		48 44 58 4d 31 30 30 35 32 30  
+		30 39 35 38 46 43 44 42 44 41  
+		31 30 30 30 30 30 30 30 30 30  
+		30 30 30 30 30 30 30 30 30 30  
+		30 30 30 30 01 00 00 02 5d 00  
+		00 00 30 00 00 2e dc 7b 22 43  
+		6f 6d 6d 61 6e 64 22 3a 20 22  
+		43 4f 4d 5f 4c 4f 41 44 5f 43  
+		45 52 54 49 46 49 43 41 54 45  
+		22 2c 20 22 52 65 73 75 6c 74  
+		22 3a 20 30 7d 
+log_tool.py                106 DEBUG    [case_actions.py: 98] set config.qrCode=e9cf882c230f4cf0851a4e407cb0a512
+log_tool.py                106 DEBUG    [case_actions.py: 146] run: self.make_qrcode(&quot;e9cf882c230f4cf0851a4e407cb0a512&quot;, &quot;621437&quot;)
+log_tool.py                115 INFO     [case_actions.py: 329] stop actions...
+log_tool.py                115 INFO     [case_checker.py: 30] check resp match...
+log_tool.py                115 INFO     [common_methods.py: 64] Found (&#x27;code&#x27;, &#x27;00000&#x27;)
+log_tool.py                115 INFO     [case_checker.py: 42] check sim match...
+log_tool.py                115 INFO     [case_checker.py: 53] 8 = 8
+log_tool.py                115 INFO     [case_checker.py: 53] e9cf882c230f4cf0851a4e407cb0a512 = e9cf882c230f4cf0851a4e407cb0a512
+log_tool.py                115 INFO     [case_checker.py: 53] 1529050704.319 = 1529050704.319
+log_tool.py                115 INFO     [case_actions.py: 201] step test end.
+--------------------
+
+
+log_tool.py                115 INFO     [framework.py: 78] pass</div></td></tr></tbody></table></body></html>

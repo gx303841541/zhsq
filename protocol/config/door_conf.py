@@ -280,8 +280,9 @@ COM_SETTING_PARAMETERS = {
 
 u'''功能命令：下发固定凭证信息'''
 COM_LOAD_CERTIFICATE = {
-    "set_item": {"_startTime": "Data.startTime", "_endTime": "Data.endTime", "_subDeviceID": "Data.subDeviceID",
-                 "_UserType": "Data.UserType", "_CredenceType": "Data.CredenceType", "_credenceNo": "Data.credenceNo", },
+    "set_item": {"_startTime": "Data.0.startTime", "_endTime": "Data.0.endTime", "_subDeviceID": "Data.0.subDeviceID",
+                 "_UserType": "Data.0.UserType", "_CredenceType": "Data.0.CredenceType", "_credenceNo": "Data.0.credenceNo", 
+				 "_userID": "Data.0.userID", },
     "rsp_msg": {
         "Command": "COM_LOAD_CERTIFICATE",
         "Result": 0,
