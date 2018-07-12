@@ -32,12 +32,13 @@ except:
 
 
 class SDK(communication_base):
-    def __init__(self, logger, addr):
+    def __init__(self, logger, addr, encrypt_flag=0):
         self.queue_in = Queue.Queue()
         self.queue_out = Queue.Queue()
         super(SDK, self).__init__(logger, self.queue_in, self.queue_out,
                                   left_data=b'', min_length=57)
         self.addr = addr
+        self.encrypt_flag = encrypt_flag
         self.name = 'Device controler'
         self.connection = my_socket.MyClient(logger, addr)
         self.state = 'close'
@@ -54,7 +55,8 @@ class SDK(communication_base):
     def msg_build(self, data, ack=b'\x01'):
         self.LOG.yinfo("send msg: " + self.convert_to_dictstr(data))
         # need encrypt
-        #data = AES_CBC_encrypt(self.sim_obj._encrypt_key, data)
+        if self.encrypt_flag:
+            data = AES_CBC_encrypt(self.sim_obj._encrypt_key, data)
         if isinstance(data, type(b'')):
             pass
         else:
@@ -82,7 +84,7 @@ class SDK(communication_base):
         left_data = b''
 
         while data[0:1] != b'\x48' and len(data) >= self.min_length:
-            self.LOG.warn('give up dirty data: %02x' % ord(data[0]))
+            self.LOG.warn('give up dirty data: %02x' % ord(str(data[0])))
             data = data[1:]
 
         if len(data) < self.min_length:
@@ -101,11 +103,11 @@ class SDK(communication_base):
                     else:
                         #self.LOG.error('data field is empty!')
                         pass
-                elif length >= 1 and length < 1000:
+                elif length >= 1 and length < 10000:
                     left_data = data
                 else:
                     for s in data[:4]:
-                        self.LOG.warn('give up dirty data: %02x' % ord(s))
+                        self.LOG.warn('give up dirty data: %02x' % ord(chr(s)))
                     left_data = data[4:]
             else:
                 pass
@@ -137,9 +139,11 @@ class SDK(communication_base):
                 data_length = struct.unpack('>I', msg[49:53])[0]
                 crc16 = struct.unpack('>H', msg[55:57])
                 # need decrypt
-                # data = json.loads(AES_CBC_decrypt(self.sim_obj._decrypt_key,
-                #                                  msg[57:57 + data_length]).decode('utf-8'))
-                data = json.loads(msg[57:57 + data_length].decode('utf-8'))
+                if self.encrypt_flag:
+                    data = json.loads(AES_CBC_decrypt(self.sim_obj._encrypt_key,
+                                                      msg[57:57 + data_length]).decode('utf-8'))
+                else:
+                    data = json.loads(msg[57:57 + data_length].decode('utf-8'))
                 self.LOG.info("recv msg: " + self.convert_to_dictstr(data))
                 rsp_msg = self.sim_obj.protocol_handler(data, ack)
                 if rsp_msg:

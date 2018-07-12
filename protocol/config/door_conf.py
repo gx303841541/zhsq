@@ -3,6 +3,7 @@
 import datetime
 import random
 import re
+from collections import defaultdict
 
 # 设备初始化参数
 Attribute_initialization = {
@@ -27,8 +28,7 @@ Attribute_initialization = {
     "_endTime": '2888-08-08',
     "_UserType": '',
     "_userID": '',
-    "_CredenceType": 2,
-    "_credenceNo": '12345678',
+    "_CredenceType": {},
     "_State": 0,
 
     "SPECIAL_ITEM": {
@@ -281,8 +281,7 @@ COM_SETTING_PARAMETERS = {
 u'''功能命令：下发固定凭证信息'''
 COM_LOAD_CERTIFICATE = {
     "set_item": {"_startTime": "Data.0.startTime", "_endTime": "Data.0.endTime", "_subDeviceID": "Data.0.subDeviceID",
-                 "_UserType": "Data.0.UserType", "_CredenceType": "Data.0.CredenceType", "_credenceNo": "Data.0.credenceNo", 
-				 "_userID": "Data.0.userID", },
+                 "_UserType": "Data.0.UserType", "_userID": "Data.0.userID", },
     "rsp_msg": {
         "Command": "COM_LOAD_CERTIFICATE",
         "Result": 0,

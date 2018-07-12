@@ -127,7 +127,7 @@ class BaseSim():
 
 
 class Dev(BaseSim):
-    def __init__(self, logger, config_file, server_addr, N=0, tt=None, xx=1):
+    def __init__(self, logger, config_file, server_addr, N=0, tt=None, encrypt_flag=0):
         super(Dev, self).__init__(logger)
         module_name = "protocol.config.%s" % config_file
         mod = import_module(module_name)
@@ -135,9 +135,9 @@ class Dev(BaseSim):
         self.LOG = logger
         self.N = N
         self.tt = tt
-        self.xx = xx
+        self.encrypt_flag = encrypt_flag
         self.attribute_initialization()
-        self.sdk_obj = SDK(logger=logger, addr=server_addr)
+        self.sdk_obj = SDK(logger=logger, addr=server_addr, encrypt_flag=self.encrypt_flag)
         self.sdk_obj.sim_obj = self
         self.sdk_obj.device_id = self._deviceID
         self.need_stop = False
@@ -175,7 +175,7 @@ class Dev(BaseSim):
             'dev register', self.to_register_dev, 1, 100)
 
         self.task_obj.add_task(
-            'heartbeat', self.to_send_heartbeat, 1000000, 6000)
+            'heartbeat', self.to_send_heartbeat, 1000000, 5000)
 
     def msg_dispatch(self):
         msgs = []
@@ -285,7 +285,8 @@ class Dev(BaseSim):
                 if msg['Result'] == 0:
                     self.dev_register = True
                     # decrypt
-                    #self.add_item('_decrypt_key', msg['Data'][0]['aeskey'])
+                    if self.encrypt_flag:
+                        self.add_item('_encrypt_key', msg['Data'][0]['aeskey'])
                     self.LOG.warn(common_APIs.chinese_show("设备已经注册"))
                     return None
                 else:
@@ -297,7 +298,18 @@ class Dev(BaseSim):
         else:
             self.update_msgst(msg['Command'], 'req')
 
-        if msg['Command'] in self.command_list:
+        if msg['Command'] == 'COM_LOAD_CERTIFICATE':
+            self._CredenceType[str(msg["Data"][0]["CredenceType"])] = msg["Data"][0]["credenceNo"]
+            self.LOG.warn(self._CredenceType[str(msg["Data"][0]["CredenceType"])])
+
+        if msg['Command'] == 'COM_DELETE_CERTIFICATE':
+            self._CredenceType[str(msg["Data"][0]["CredenceType"])] = ""
+            self.LOG.warn('del ' + self._CredenceType[str(msg["Data"][0]["CredenceType"])])
+
+        if msg['Command'] == 'COM_HEARTBEAT':
+            pass
+
+        elif msg['Command'] in self.command_list:
             self.set_items(msg['Command'], msg)
             rsp_msg = self.get_rsp_msg(msg['Command'])
             self.update_msgst(msg['Command'], 'rsp')
@@ -350,7 +362,7 @@ class Dev(BaseSim):
         self._deviceID = str(self.DeviceFacturer) + \
             str(self.DeviceType) + self._mac.replace(":", '')
         self._encrypt_key = self._deviceID[-16:].encode('utf-8')
-        self._decrypt_key = self._deviceID[-16:].encode('utf-8')
+        #self._decrypt_key = self._deviceID[-16:].encode('utf-8')
         self._subDeviceID = str(self.subDeviceType) + \
             self._mac.replace(":", '') + "%04d" % (self.N + 1)
 

@@ -27,14 +27,6 @@ from case_config import config
 from case_tools.case_checker import Checker
 from protocol.light_devices import Dev
 
-APIs_list = [
-    'update_token',
-    'update_config_from_DB',
-    'update_config_from_resp',
-    'update_config_by_random',
-    'config_dumps',
-]
-
 
 class APIs(Checker):
     def update_token(self):
@@ -91,7 +83,7 @@ class APIs(Checker):
         while field_list:
             item = field_list[0]
             field_list = field_list[1:]
-            if type(target_field[item]) == type([]) or type(target_field[item]) == type({}):
+            if type((target_field[item]) == type([]) or type(target_field[item]) == type({})) and field_list:
                 target_field = target_field[item]
             else:
                 config.__dict__[key] = target_field[item]
@@ -119,8 +111,11 @@ class APIs(Checker):
     def sim_start(self, sim_conf):
         dev_LOG = MyLogger('%s.log' % (sim_conf['name']),
                            cenable=False, flevel=logging.DEBUG, fenable=True)
+        N = 0
+        if 'N' in sim_conf:
+            N = sim_conf['N']
         self.__dict__[sim_conf['name']] = Dev(logger=dev_LOG, config_file=sim_conf['conf'],
-                                              server_addr=(config.smartGW_IP, config.smartGW_port))
+                                              server_addr=(config.smartGW_IP, config.smartGW_port), N=N)
         self.__dict__[sim_conf['name']] .run_forever()
         time.sleep(1)
         self.LOG.warn('%s is running' % sim_conf['name'])
@@ -136,29 +131,27 @@ class APIs(Checker):
         img.save(pic_name)
 
     def run_def(self, def_dict):
-        args = ''
+        args = []
         for arg in def_dict["args"]:
-            if re.search(r'##', arg):
-                args += self.data_wash_core(arg) + ', '
+            if isinstance(arg, str) and re.search(r'##', arg):
+                args.append(self.data_wash_core(arg))
             else:
-                args += arg + ', '
-        args = args[:-2]
-        self.LOG.debug('run: ' + "self.%s(%s)" % (def_dict["name"], args))
-        eval("self.%s(%s)" % (def_dict["name"], args))
+                args.append(arg)
+
+        self.LOG.debug('run: ' + "self.%s(*%s)" % (def_dict["name"], str(args)))
+        eval("self.%s(*%s)" % (def_dict["name"], str(args)))
 
 
 class Action(APIs):
     def do_setup(self, datas_dict):
         self._init_()
+        self.LOG.info('setup start...')
         req_list = []
         DB_list = []
         def_list = []
         sim_list = []
-        self.LOG.info('setup start...')
         for item in datas_dict['setup']:
-            if re.search(r'^req', item) and datas_dict['setup'][item]:
-                req_list.append(item)
-            elif re.search(r'^DB', item) and datas_dict['setup'][item]:
+            if re.search(r'^DB', item) and datas_dict['setup'][item]:
                 DB_list.append(item)
             elif re.search(r'^def', item) and datas_dict['setup'][item]:
                 def_list.append(item)
@@ -167,7 +160,7 @@ class Action(APIs):
             else:
                 self.LOG.error('Unknow item: %s' % item)
 
-        for item in (DB_list):
+        for item in DB_list:
             self.update_config_from_DB(datas_dict['setup'][item]['table'], self.data_wash(datas_dict['setup']
                                                                                           [item]['where']), datas_dict['setup'][item]['target'])
 
@@ -184,19 +177,18 @@ class Action(APIs):
             step_id = 0
             for step in datas_dict['steps']:
                 step_id += 1
-                if 'name' in step:
-                    step_name = step["name"]
+                if 'name' in step['mode']:
+                    step_name = step['mode']["name"]
                 else:
                     step_name = str(step_id)
                 self.LOG.info('step %s start...' % (step_name))
-                resp = self.send_data(
-                    step['mode'], self.data_wash(step['send']))
-                self.resp = resp
 
                 if 'action' in step:
-                    self.action(step['action'])
+                    self.action(step['action'], step['mode'])
 
-                self.result_check(self.data_wash(step['check']), resp)
+                if 'check' in step:
+                    self.result_check(self.data_wash(step['check']), self.resp)
+
                 self.LOG.info(
                     'step %s end.\n%s\n\n' % (step_name, '-' * 20))
             self.case_pass()
@@ -216,6 +208,8 @@ class Action(APIs):
                 DB_list.append(item)
             elif re.search(r'^def', item) and datas_dict['teardown'][item]:
                 def_list.append(item)
+            else:
+                self.LOG.error('Unknow item: %s' % item)
 
         for item in DB_list:
             self.update_config_from_DB(datas_dict['teardown'][item]['table'], self.data_wash(datas_dict['teardown']
@@ -229,7 +223,7 @@ class Action(APIs):
 
         #self.LOG.debug('config info after teardown:')
         # self.config_dumps()
-        self.LOG.info('teardown end.')
+        self.LOG.info('teardown end.\n\n')
 
     def send_data(self, mode, data):
         resp = ''
@@ -277,12 +271,15 @@ class Action(APIs):
             sim = self.__dict__[mode['protocol'][0]]
             for item in data:
                 if item == 'upload_record':
+                    self.LOG.info('upload_record %s' % data['upload_record'])
                     sim.send_msg(sim.get_upload_record(int(data['upload_record'])))
                 elif item == 'upload_event':
+                    self.LOG.info('upload_event %s' % data['upload_event'])
                     sim.send_msg(sim.get_upload_event(int(data['upload_event'])))
                 else:
                     self.LOG.error('Unknow msg: %s' % item)
         elif mode['protocol'][0] == 'replay':
+            self.LOG.debug(r'python3 %s -f %s' % ('replayit.py', data['module']))
             cur_dir = os.getcwd()
             os.chdir(config.replayPath)
             os.system(r'python3 %s -f %s' % ('replayit.py', data['module']))
@@ -310,15 +307,22 @@ class Action(APIs):
         tmp_data = self.data_wash_core(tmp_data)
         return eval(tmp_data)
 
-    def action(self, actions):
+    def action(self, actions, mode):
         self.LOG.info('start actions...')
+        req_list = []
         resp_list = []
         def_list = []
         for item in actions:
-            if re.search(r'^resp', item) and actions[item]:
+            if re.search(r'^req', item) and actions[item]:
+                req_list.append(item)
+            elif re.search(r'^resp', item) and actions[item]:
                 resp_list.append(item)
             elif re.search(r'^def', item) and actions[item]:
                 def_list.append(item)
+
+        for item in req_list:
+            resp = self.send_data(mode, self.data_wash(actions[item]))
+            self.resp = resp
 
         for item in resp_list:
             self.update_config_from_resp(self.resp, actions[item])

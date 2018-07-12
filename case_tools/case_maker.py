@@ -57,7 +57,7 @@ class CaseMaker(object):
         config_module = import_module('case_config.' + self.config_file)
         with open(case_file, 'w') as cf:
             self.build_head(cf)
-            for casename in (item for item in dir(config_module) if re.match(r'^Test_', item, re.I)):
+            for casename in config_module.cases:
                 self.build_class(cf, casename=casename)
 
             self.build_end(cf)
@@ -73,7 +73,7 @@ class CaseMaker(object):
         cf.write('import sys\n')
         cf.write('import time\n')
         cf.write('abs_path = os.path.abspath(os.path.dirname(__file__))\n')
-        cf.write('sys.path.append(abs_path)\n')
+        cf.write('sys.path.append(os.path.dirname(abs_path))\n')
         cf.write('\n')
         cf.write('import case_tools.case_actions as case_actions\n')
         cf.write('from APIs.common_APIs import modify_cls, modify_init\n')
@@ -93,17 +93,17 @@ class CaseMaker(object):
 
     def build_setup(self, cf, casename):
         cf.write('    def setup(self):\n')
-        cf.write('        self.do_setup(%s.%s)\n' %
+        cf.write('        self.do_setup(%s.cases["%s"])\n' %
                  (self.config_file, casename))
 
     def build_step(self, cf, casename):
         cf.write('    def run(self):\n')
-        cf.write('        self.do_run(%s.%s)\n' %
+        cf.write('        self.do_run(%s.cases["%s"])\n' %
                  (self.config_file, casename))
 
     def build_teardown(self, cf, casename):
         cf.write('    def teardown(self):\n')
-        cf.write('        self.do_teardown(%s.%s)\n' %
+        cf.write('        self.do_teardown(%s.cases["%s"])\n' %
                  (self.config_file, casename))
 
     def build_end(self, cf):

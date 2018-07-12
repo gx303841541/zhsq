@@ -25,6 +25,7 @@ from case_config import config
 
 class Checker(common_methods.CommMethod):
     def result_check(self, check_dict, resp):
+        self.LOG.info('start result_check...')
         for item in check_dict:
             if item.startswith('resp-match'):
                 self.LOG.info("check resp match...")
@@ -44,15 +45,20 @@ class Checker(common_methods.CommMethod):
 
             else:
                 self.LOG.warn('More check point will be do in the feature!')
+        self.LOG.info('stop result_check...')
 
     def sim_para_check(self, check_dict):
         result = True
         sim = self.__dict__[check_dict['obj']]
         for k, v in check_dict['expect']:
-            if sim.__dict__[k] == v:
-                self.LOG.info("%s = %s" % (sim.__dict__[k], v))
+            dst = sim.__dict__
+            k_list = k.split('.')
+            for i in k_list:
+                dst = dst[i]
+            if dst == v:
+                self.LOG.info("%s = %s" % (dst, v))
             else:
-                self.LOG.error("%s != %s" % (sim.__dict__[k], v))
+                self.LOG.error("%s != %s" % (dst, v))
                 result = False
         assert result
 
@@ -126,9 +132,13 @@ class Checker(common_methods.CommMethod):
 
     def DB_query(self, cmd):
         if not hasattr(self, 'cur'):
-            self.cxn = psycopg2.connect(
-                database=config.PostgreSQL['db'], user=config.PostgreSQL['user'], password=config.PostgreSQL['password'], host=config.PostgreSQL['host'], port=config.PostgreSQL['port'])
-            self.cur = self.cxn.cursor()
+            try:
+                self.cxn = psycopg2.connect(
+                    database=config.PostgreSQL['db'], user=config.PostgreSQL['user'], password=config.PostgreSQL['password'], host=config.PostgreSQL['host'], port=config.PostgreSQL['port'])
+                self.cur = self.cxn.cursor()
+            except psycopg2.OperationalError as er:
+                self.LOG.error('connect to DB error!')
+                return
         self.LOG.info('exec SQL:' + cmd)
         self.cur.execute(cmd)
         return self.cur.fetchall()
@@ -144,3 +154,16 @@ class Checker(common_methods.CommMethod):
             resp = resp[0]
         self.LOG.debug("get from DB: " + str(resp))
         return resp
+
+    def mysleep(self, timeout=1, feedback=None, *arg):
+        counter = 0
+        while True:
+            if feedback and feedback(*arg):
+                return True
+            elif counter >= timeout:
+                return False
+            else:
+                self.LOG.debug('Total %ds, %ds left...' %
+                               (timeout, timeout - counter))
+                counter += 1
+                time.sleep(1)

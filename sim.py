@@ -58,6 +58,14 @@ class ArgHandle():
             help='special device ids',
         )
         parser.add_argument(
+            '-e', '--encrypt',
+            dest='encrypt',
+            action='store',
+            default=1,
+            type=int,
+            help='encrypt',
+        )
+        parser.add_argument(
             '-p', '--server-port',
             dest='server_port',
             action='store',
@@ -205,12 +213,12 @@ if __name__ == '__main__':
         log_level = logging.INFO
 
     sims = []
-    for i in range(arg_handle.get_args('device_count')):
+    for i in range(arg_handle.get_args('xx'), arg_handle.get_args('device_count') + arg_handle.get_args('xx')):
         dev_LOG = MyLogger('dev_sim_%d.log' % (
-            i), clevel=log_level, flevel=log_level, fenable=False)
+            i), clevel=log_level, flevel=log_level, fenable=True)
 
         sim = Dev(logger=dev_LOG, config_file=arg_handle.get_args('config_file'), server_addr=(
-            arg_handle.get_args('server_IP'), arg_handle.get_args('server_port')), N=arg_handle.get_args('xx') + i, tt=arg_handle.get_args('tt'))
+            arg_handle.get_args('server_IP'), arg_handle.get_args('server_port')), N=i, tt=arg_handle.get_args('tt'), encrypt_flag=arg_handle.get_args('encrypt'))
         sim.run_forever()
         sims.append(sim)
 

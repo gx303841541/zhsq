@@ -2,19 +2,19 @@
 import os
 import sys
 
-suite_list = ['test_1']
+suite_list = ['dial_test']
 
 reqid = 0
 work_dir = os.path.abspath(os.path.dirname(sys.argv[0]))
 
 
-server_IP = '192.168.0.236'
+server_IP = '10.101.70.236'
 server_port = 81
 
-smartGW_IP = '192.168.0.247'
+smartGW_IP = '10.101.70.247'
 smartGW_port = 20001
 
-server_IP2 = '192.168.0.236'
+server_IP2 = '10.101.70.236'
 server_port2 = 9046
 
 cloud_server_IP = '47.106.21.206'
@@ -26,13 +26,13 @@ cloud_login_url = "/egc-cloudapicomponent/admin/login?username=test&password=dGV
 
 u'''小区平台UAT数据库'''
 PostgreSQL = {
-    "host": "192.168.0.238",
+    "host": "10.101.70.238",
     "user": "hdsc_postgres",
     "password": "hdsc_postgres",
     "db": "hdsc_db",
     "port": "5432"
 }
 
-TestTime = 100 * 60 * 60  # 测试时间 100 小时 * 60分钟 * 60秒
 
-replayPath = r'C:\\httpapi-master\\'
+replayPath = r'C:\\replayit\\'
+replayPath1 = r'C:\\replayit\\'

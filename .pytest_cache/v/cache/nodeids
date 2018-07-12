@@ -1,0 +1,5 @@
+[
+  "cases/dial_test.py::Test_faceswipEvent::()::test",
+  "cases/dial_test.py::Test_patrolHandle::()::test",
+  "cases/dial_test.py::Test_playshow::()::test"
+]

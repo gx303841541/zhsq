@@ -27,9 +27,9 @@ Attribute_initialization = {
     "_CredenceType": 5,
     "_credenceNo": '12345678',
     "_State": 0,
-    "_id": 1,
-    "_id_ADD_SCHEDULE": 1,
-    "_id_DELETE_SCHEDULE": 1,
+    "_id": 0,
+	"_id_ADD_SCHEDULE": 0,
+	"_id_DELETE_SCHEDULE": 0,
 
     "SPECIAL_ITEM": {
         "_State": {
