@@ -1,3 +1,20 @@
+# 代码结构
+该框架集成了设备模拟器，并结合录制回放工具一起实现了全链路测试的目的
+main.py: 程序入口模块，python3 main.py -f xxx_test
+result: 每次执行的日志文件会放在这里
+cases: 程序每次生成的用例会放在这里， 然后交由py.test执行这里的用例
+
+case_tools:
+case_tools\case_maker.py: 将配置的测试用例转换为pt.test所能识别的格式
+case_tools\case_runner.py： 调用第三方工具py.test执行测试
+case_tools\case_actions.py：用例执行
+case_tools\case_checker.py：用例检查点校验
+
+case_config:
+case_config\config.py: 全局配置文件，所要用的全局变量信息都放这里，包括后台IP信息， 数据库地址等等
+case_config\door_test.py：这个是门禁组件的测试用例，作为一个测试集。新增测试用例即参考它再写一个py文件， 内容如下：
+
+
 # 每个步骤支持的操作
 一. setup/teardown
 1. 执行API

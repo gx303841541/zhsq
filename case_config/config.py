@@ -2,7 +2,7 @@
 import os
 import sys
 
-suite_list = ['dial_test']
+suite_list = ['door_test']
 
 reqid = 0
 work_dir = os.path.abspath(os.path.dirname(sys.argv[0]))
@@ -35,4 +35,4 @@ PostgreSQL = {
 
 
 replayPath = r'C:\\replayit\\'
-replayPath1 = r'C:\\replayit\\'
+devsimPath = r'C:\\testtoolsx\\'

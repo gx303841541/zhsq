@@ -151,7 +151,7 @@ cases['Test_permission_download'] = {
 
                 "def": {
                     'name': "mysleep",
-                    'args': [10],
+                    'args': [20],
                 },
             },
 
@@ -181,7 +181,7 @@ cases['Test_permission_download'] = {
 
                 "def": {
                     'name': "mysleep",
-                    'args': [10],
+                    'args': [20],
                 },
             },
 
@@ -312,6 +312,11 @@ cases['Test_visitorQrcode'] = {
                 'resp2': {
                     'field': 'data.qrCode',
                     'key': 'qrCode',
+                },
+
+                "def": {
+                    'name': "mysleep",
+                    'args': [20],
                 },
 
                 "def1": {
