@@ -75,9 +75,9 @@ class BaseSim():
             self.LOG.warn("\t\t\trsp: %d" % (self.msgst[msg_code]['rsp']))
             self.LOG.warn("-" * 30)
 
-    def send_msg(self, msg):
+    def send_msg(self, msg, ack=b'\x01'):
         self.update_msgst(json.loads(msg)['Command'], 'req')
-        return self.sdk_obj.add_send_data(self.sdk_obj.msg_build(msg))
+        return self.sdk_obj.add_send_data(self.sdk_obj.msg_build(msg, ack))
 
     @abstractmethod
     def protocol_handler(self, msg, ack=False):
@@ -123,11 +123,11 @@ class BaseSim():
                 self.old_status[item] = copy.deepcopy(self.__dict__[item])
 
         if need_send_report:
-            self.send_msg(self.get_event_report())
+            self.send_msg(self.get_event_report(), ack=b'\x00')
 
 
 class Dev(BaseSim):
-    def __init__(self, logger, config_file, server_addr, N=0, tt=None, encrypt_flag=0):
+    def __init__(self, logger, config_file, server_addr, N=0, tt=None, encrypt_flag=0, self_addr=None):
         super(Dev, self).__init__(logger)
         module_name = "protocol.config.%s" % config_file
         mod = import_module(module_name)
@@ -137,7 +137,8 @@ class Dev(BaseSim):
         self.tt = tt
         self.encrypt_flag = encrypt_flag
         self.attribute_initialization()
-        self.sdk_obj = SDK(logger=logger, addr=server_addr, encrypt_flag=self.encrypt_flag)
+        self.sdk_obj = SDK(logger=logger, addr=server_addr,
+                           encrypt_flag=self.encrypt_flag, self_addr=self_addr)
         self.sdk_obj.sim_obj = self
         self.sdk_obj.device_id = self._deviceID
         self.need_stop = False
@@ -175,7 +176,7 @@ class Dev(BaseSim):
             'dev register', self.to_register_dev, 1, 100)
 
         self.task_obj.add_task(
-            'heartbeat', self.to_send_heartbeat, 1000000, 5000)
+            'heartbeat', self.to_send_heartbeat, 1000000, 3000)
 
     def msg_dispatch(self):
         msgs = []
@@ -201,11 +202,13 @@ class Dev(BaseSim):
                     time.sleep(self.test_msgs["interval"] / 1000.0)
                 tmp_msg = msg.split('.')
                 if tmp_msg[0] == 'COM_UPLOAD_DEV_STATUS':
-                    self.send_msg(self.get_upload_status())
+                    self.send_msg(self.get_upload_status(), ack=b'\x00')
                 elif tmp_msg[0] == 'COM_UPLOAD_RECORD':
-                    self.send_msg(self.get_upload_record(tmp_msg[-1]))
+                    self.send_msg(self.get_upload_record(
+                        tmp_msg[-1]), ack=b'\x00')
                 elif tmp_msg[0] == 'COM_UPLOAD_EVENT':
-                    self.send_msg(self.get_upload_event(tmp_msg[-1]))
+                    self.send_msg(self.get_upload_event(
+                        tmp_msg[-1]), ack=b'\x00')
                 else:
                     self.LOG.error("Unknow msg to dispatch: %s" % (msg))
 
@@ -245,7 +248,7 @@ class Dev(BaseSim):
                 self.old_status[item] = copy.deepcopy(self.__dict__[item])
 
         if need_send_report:
-            self.send_msg(self.get_upload_status())
+            self.send_msg(self.get_upload_status(), ack=b'\x00')
 
     def to_register_dev(self):
         if self.dev_register:
@@ -253,12 +256,12 @@ class Dev(BaseSim):
         else:
             self.LOG.info(common_APIs.chinese_show("发送设备注册"))
             self.send_msg(json.dumps(
-                self.get_send_msg('COM_DEV_REGISTER')))
+                self.get_send_msg('COM_DEV_REGISTER')), ack=b'\x00')
 
     def to_send_heartbeat(self):
         if self.dev_register:
             self.send_msg(json.dumps(
-                self.get_send_msg('COM_HEARTBEAT')))
+                self.get_send_msg('COM_HEARTBEAT')), ack=b'\x00')
 
     def get_upload_status(self):
         self.LOG.warn(common_APIs.chinese_show("设备状态上报"))
@@ -347,6 +350,8 @@ class Dev(BaseSim):
             for i in msg_param_list[1:]:
                 if re.match(r'\d+', i):
                     i = int(i)
+                else:
+                    pass
                 tmp_msg = tmp_msg[i]
             self.set_item(item, tmp_msg)
 

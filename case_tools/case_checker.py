@@ -27,24 +27,25 @@ class Checker(common_methods.CommMethod):
     def result_check(self, check_dict, resp):
         self.LOG.info('start result_check...')
         for item in check_dict:
-            if item.startswith('resp-match'):
+            if item.startswith('resp-match') and check_dict[item]:
                 self.LOG.info("check resp match...")
                 self.resp_match_check(check_dict[item], resp)
 
-            elif item.startswith('resp-unmatch'):
+            elif item.startswith('resp-unmatch') and check_dict[item]:
                 self.LOG.info("check resp unmatch...")
                 self.resp_unmatch_check(check_dict[item], resp)
 
-            elif item.startswith('DB-match'):
+            elif item.startswith('DB-match') and check_dict[item]:
                 self.LOG.info("check DB match...")
                 self.DB_match_check(check_dict[item])
 
-            elif item.startswith('sim'):
+            elif item.startswith('sim') and check_dict[item]:
                 self.LOG.info("check sim match...")
                 self.sim_para_check(check_dict[item])
 
             else:
-                self.LOG.warn('More check point will be do in the feature!')
+                self.LOG.warn(
+                    'More check point will be do in the feature![%s]' % item)
         self.LOG.info('stop result_check...')
 
     def sim_para_check(self, check_dict):
@@ -83,7 +84,7 @@ class Checker(common_methods.CommMethod):
                 whichone += ' and '
             whichone += item
 
-        resp = self.DB_sql_send(expect_DB['table'], whichone)
+        resp = self.DB_sql_select(expect_DB['table'], whichone)
         if resp:
             for (id, value) in expect_DB['expect']:
                 if expect_DB['method'] == '=':
@@ -140,16 +141,29 @@ class Checker(common_methods.CommMethod):
                 self.LOG.error('connect to DB error!')
                 return
         self.LOG.info('exec SQL:' + cmd)
-        self.cur.execute(cmd)
-        return self.cur.fetchall()
+        try:
+            self.cur.execute(cmd)
+            self.cxn.commit()
+            return self.cur.fetchall()
+        except psycopg2.ProgrammingError as e:
+            self.LOG.warn('SQL error:' + str(e))
+            return ''
 
     def DB_close(self):
         self.cur.close()
         self.cxn.close()
 
-    def DB_sql_send(self, table, whichone):
+    def DB_sql_select(self, table, whichone):
         resp = self.DB_query(
             'select * from %s where %s;' % (table, whichone))
+        if resp:
+            resp = resp[0]
+        self.LOG.debug("get from DB: " + str(resp))
+        return resp
+
+    def DB_sql_set(self, table, set, whichone):
+        resp = self.DB_query(
+            'update %s set %s where %s;' % (table, set, whichone))
         if resp:
             resp = resp[0]
         self.LOG.debug("get from DB: " + str(resp))

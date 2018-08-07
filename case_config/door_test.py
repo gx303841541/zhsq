@@ -151,7 +151,7 @@ cases['Test_permission_download'] = {
 
                 "def": {
                     'name': "mysleep",
-                    'args': [20],
+                    'args': [2],
                 },
             },
 
@@ -181,7 +181,7 @@ cases['Test_permission_download'] = {
 
                 "def": {
                     'name': "mysleep",
-                    'args': [20],
+                    'args': [2],
                 },
             },
 
@@ -215,7 +215,7 @@ cases['Test_visitorQrcode'] = {
 
         "def2": {
             'name': "update_config_by_tuple",
-            'args': ['userID', '%s' % str(time.time())],
+            'args': ["'userID'", "'%s'" % str(time.time())],
         },
 
         "sim1": {
@@ -316,12 +316,12 @@ cases['Test_visitorQrcode'] = {
 
                 "def": {
                     'name': "mysleep",
-                    'args': [20],
+                    'args': [2],
                 },
 
                 "def1": {
                     'name': "make_qrcode",
-                    'args': ["##config.qrCode##", "##config.OT_password##"],
+                    'args': ["'##config.qrCode##'", "'##config.OT_password##'"],
                 },
             },
 

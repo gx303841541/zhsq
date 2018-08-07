@@ -2,7 +2,7 @@
 import os
 import sys
 
-suite_list = ['door_test']
+suite_list = ['pay_test']
 
 reqid = 0
 work_dir = os.path.abspath(os.path.dirname(sys.argv[0]))
@@ -25,10 +25,18 @@ cloud_login_url = "/egc-cloudapicomponent/admin/login?username=test&password=dGV
 
 
 u'''小区平台UAT数据库'''
-PostgreSQL = {
+PostgreSQL1 = {
     "host": "10.101.70.238",
     "user": "hdsc_postgres",
     "password": "hdsc_postgres",
+    "db": "hdsc_db",
+    "port": "5432"
+}
+
+PostgreSQL = {
+    "host": "10.101.70.238",
+    "user": "test_zhouhanbo",
+    "password": "GfD1hfVxIev",
     "db": "hdsc_db",
     "port": "5432"
 }

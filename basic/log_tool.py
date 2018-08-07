@@ -64,7 +64,7 @@ class MyLogger:
 
         self.cprint = cprint()
         self.p = logging.getLogger(path)
-        self.p.setLevel(logging.DEBUG)
+        self.p.setLevel(logging.INFO)
         #fmt = logging.Formatter('[%(asctime)s] [%(levelname)s] %(message)s', '%m-%d %H:%M:%S')
         self.fmt = logging.Formatter(
             '[%(asctime)s] [%(levelname)s] %(message)s')

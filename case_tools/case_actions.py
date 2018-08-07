@@ -17,11 +17,11 @@ import time
 
 import PIL
 import psycopg2
+import qrcode
 import requests
 from PIL import Image, ImageDraw, ImageFont
 
 import APIs.common_APIs as common_APIs
-import qrcode
 from basic.log_tool import MyLogger
 from case_config import config
 from case_tools.case_checker import Checker
@@ -68,7 +68,7 @@ class APIs(Checker):
                 whichone += ' and '
             whichone += item
 
-        resp = self.DB_sql_send(table, whichone)
+        resp = self.DB_sql_select(table, whichone)
         # self.LOG.debug("get from DB: " + str(resp))
         for id, key in item_list:
             self.LOG.debug('set config.%s = "%s"' % (key, resp[id]))
@@ -110,7 +110,7 @@ class APIs(Checker):
 
     def sim_start(self, sim_conf):
         dev_LOG = MyLogger('%s.log' % (sim_conf['name']),
-                           cenable=False, flevel=logging.DEBUG, fenable=True)
+                           cenable=False, clevel=logging.INFO, flevel=logging.INFO, fenable=True, renable=False)
         N = 0
         if 'N' in sim_conf:
             N = sim_conf['N']
@@ -130,16 +130,38 @@ class APIs(Checker):
         draw = ImageDraw.Draw(img)
         img.save(pic_name)
 
+    def run_replay(self, file):
+        self.LOG.debug(r'python3 %s %s' % ('replayit.py', file))
+        cur_dir = os.getcwd()
+        os.chdir(config.replayPath)
+        os.system(r'python3 %s %s' % ('replayit.py', file))
+        os.chdir(cur_dir)
+
     def run_def(self, def_dict):
-        args = []
+        args_list = []
         for arg in def_dict["args"]:
             if isinstance(arg, str) and re.search(r'##', arg):
-                args.append(self.data_wash_core(arg))
+                args_list.append(self.data_wash_core(arg))
             else:
-                args.append(arg)
+                args_list.append(arg)
+        args = ''
+        for arg in args_list:
+            args += ',' + str(arg)
 
-        self.LOG.debug('run: ' + "self.%s(*%s)" % (def_dict["name"], str(args)))
-        eval("self.%s(*%s)" % (def_dict["name"], str(args)))
+        if args.startswith(','):
+            args = args[1:]
+
+        self.LOG.info('run: ' + "self.%s(%s)" %
+                      (def_dict["name"], args))
+        eval("self.%s(%s)" % (def_dict["name"], args))
+
+    def set_carin_time(self, car_num='辽A123456', strf='%Y-%m-%d %H:%M:%S.100', **timediff):
+        time_in = (datetime.datetime.now() +
+                   datetime.timedelta(**timediff)).strftime(strf)
+
+        resp = self.DB_sql_set(
+            'plc.park_access_cur', set="create_time='%s'" % time_in, whichone="car_num='%s'" % car_num)
+        # self.LOG.debug("get from DB: " + str(resp))
 
 
 class Action(APIs):
@@ -219,7 +241,8 @@ class Action(APIs):
             self.run_def(datas_dict['teardown'][item])
 
         for item in resp_list:
-            self.update_config_from_resp(self.resp, datas_dict['teardown'][item])
+            self.update_config_from_resp(
+                self.resp, datas_dict['teardown'][item])
 
         #self.LOG.debug('config info after teardown:')
         # self.config_dumps()
@@ -238,9 +261,9 @@ class Action(APIs):
             else:
                 url = "http://%s:%d/%s" % (config.server_IP,
                                            config.server_port, mode['url'])
-            self.LOG.debug(url)
+            self.LOG.info(url)
             # self.LOG.debug("send headers: " + self.convert_to_dictstr(header))
-            self.LOG.debug("send msg: " + self.convert_to_dictstr(data))
+            self.LOG.info("send msg: " + self.convert_to_dictstr(data))
             if mode['protocol'][1] == "get":
                 try:
                     resp = requests.get(url, headers=header, timeout=5)
@@ -249,7 +272,7 @@ class Action(APIs):
                     # assert False
                 else:
                     resp = resp.json()
-                    self.LOG.debug(
+                    self.LOG.info(
                         "recv msg: " + self.convert_to_dictstr(resp))
 
             elif mode['protocol'][1] == "post":
@@ -261,7 +284,7 @@ class Action(APIs):
                     # assert False
                 else:
                     resp = resp.json()
-                    self.LOG.debug(
+                    self.LOG.info(
                         "recv msg: " + self.convert_to_dictstr(resp))
             else:
                 pass
@@ -272,14 +295,17 @@ class Action(APIs):
             for item in data:
                 if item == 'upload_record':
                     self.LOG.info('upload_record %s' % data['upload_record'])
-                    sim.send_msg(sim.get_upload_record(int(data['upload_record'])))
+                    sim.send_msg(sim.get_upload_record(
+                        int(data['upload_record'])))
                 elif item == 'upload_event':
                     self.LOG.info('upload_event %s' % data['upload_event'])
-                    sim.send_msg(sim.get_upload_event(int(data['upload_event'])))
+                    sim.send_msg(sim.get_upload_event(
+                        int(data['upload_event'])))
                 else:
                     self.LOG.error('Unknow msg: %s' % item)
         elif mode['protocol'][0] == 'replay':
-            self.LOG.debug(r'python3 %s -f %s' % ('replayit.py', data['module']))
+            self.LOG.debug(r'python3 %s -f %s' %
+                           ('replayit.py', data['module']))
             cur_dir = os.getcwd()
             os.chdir(config.replayPath)
             os.system(r'python3 %s -f %s' % ('replayit.py', data['module']))

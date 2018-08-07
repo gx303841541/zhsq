@@ -32,7 +32,7 @@ except:
 
 
 class SDK(communication_base):
-    def __init__(self, logger, addr, encrypt_flag=0):
+    def __init__(self, logger, addr, encrypt_flag=0, self_addr=None):
         self.queue_in = Queue.Queue()
         self.queue_out = Queue.Queue()
         super(SDK, self).__init__(logger, self.queue_in, self.queue_out,
@@ -40,7 +40,7 @@ class SDK(communication_base):
         self.addr = addr
         self.encrypt_flag = encrypt_flag
         self.name = 'Device controler'
-        self.connection = my_socket.MyClient(logger, addr)
+        self.connection = my_socket.MyClient(logger, addr, self_addr)
         self.state = 'close'
         self.sim_obj = None
 
@@ -117,7 +117,7 @@ class SDK(communication_base):
     def add_pkg_number(self):
         pkg_number = struct.unpack('>I', self.pkg_number)[0]
         pkg_number += 1
-        self.pkg_number = struct.pack('>I', self.pkg_number)
+        self.pkg_number = struct.pack('>I', pkg_number)
 
     def get_pkg_number(self, data):
         return truct.unpack('>I', data)[0]
